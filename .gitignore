@@ -28,6 +28,9 @@ pip-wheel-metadata/
 .openrouter-auto.json
 ~/.openrouter-auto/
 config.json
+
+# ── Local planning files (not for repo) ──────────────────────
+.plan/
 .env
 .env.local
 .env.*.local
