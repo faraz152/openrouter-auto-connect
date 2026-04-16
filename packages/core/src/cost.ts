@@ -4,6 +4,7 @@
  */
 
 import { CostEstimate, OpenRouterModel } from "./types";
+import costRegistry from "../../registry/cost.json";
 
 /**
  * Calculate cost for a request
@@ -42,7 +43,7 @@ export function calculateCost(
  */
 export function estimateTokens(text: string): number {
   if (!text) return 0;
-  return Math.ceil(text.length / 4);
+  return Math.ceil(text.length / costRegistry.token_estimate_chars_per_token);
 }
 
 /**
@@ -58,7 +59,7 @@ export function calculateChatCost(
   for (const message of messages) {
     promptTokens += estimateTokens(message.content);
     // Add overhead for message format (role, etc.)
-    promptTokens += 4;
+    promptTokens += costRegistry.message_overhead_tokens;
   }
 
   return calculateCost(model, promptTokens, expectedResponseTokens);
@@ -135,8 +136,9 @@ export function getPriceTier(
   const completionPrice = parseFloat(model.pricing.completion) || 0;
   const avgPrice = (promptPrice + completionPrice) / 2;
 
-  if (avgPrice < 0.0001) return "cheap";
-  if (avgPrice < 0.01) return "moderate";
+  const tiers = costRegistry.price_tiers;
+  if (tiers.cheap.max_avg_price !== null && avgPrice < tiers.cheap.max_avg_price) return "cheap";
+  if (tiers.moderate.max_avg_price !== null && avgPrice < tiers.moderate.max_avg_price) return "moderate";
   return "expensive";
 }
 

@@ -3,102 +3,27 @@ OpenRouter Auto - Parameter Management
 Dynamic parameter validation and configuration
 """
 
+import json
+from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from .types import OpenRouterModel, ParameterDefinition
 
-# Default parameter definitions with ranges
-DEFAULT_PARAMETERS: Dict[str, ParameterDefinition] = {
-    "temperature": ParameterDefinition(
-        name="temperature",
-        type="number",
-        description="Controls randomness. Lower = more deterministic, higher = more creative.",
-        default=1.0,
-        min=0.0,
-        max=2.0,
-    ),
-    "top_p": ParameterDefinition(
-        name="top_p",
-        type="number",
-        description="Nucleus sampling. Only consider tokens with top_p cumulative probability.",
-        default=1.0,
-        min=0.0,
-        max=1.0,
-    ),
-    "top_k": ParameterDefinition(
-        name="top_k",
-        type="integer",
-        description="Only sample from the top K tokens.",
-        default=0,
-        min=0,
-    ),
-    "max_tokens": ParameterDefinition(
-        name="max_tokens",
-        type="integer",
-        description="Maximum number of tokens to generate.",
-        min=1,
-    ),
-    "max_completion_tokens": ParameterDefinition(
-        name="max_completion_tokens",
-        type="integer",
-        description="Maximum completion tokens (alternative to max_tokens).",
-        min=1,
-    ),
-    "frequency_penalty": ParameterDefinition(
-        name="frequency_penalty",
-        type="number",
-        description="Penalize tokens based on their frequency in the text so far.",
-        default=0.0,
-        min=-2.0,
-        max=2.0,
-    ),
-    "presence_penalty": ParameterDefinition(
-        name="presence_penalty",
-        type="number",
-        description="Penalize tokens that have appeared in the text so far.",
-        default=0.0,
-        min=-2.0,
-        max=2.0,
-    ),
-    "repetition_penalty": ParameterDefinition(
-        name="repetition_penalty",
-        type="number",
-        description="Penalize repetition of tokens.",
-        default=1.0,
-        min=0.0,
-    ),
-    "min_p": ParameterDefinition(
-        name="min_p",
-        type="number",
-        description="Minimum probability for a token to be considered.",
-        default=0.0,
-        min=0.0,
-        max=1.0,
-    ),
-    "top_a": ParameterDefinition(
-        name="top_a",
-        type="number",
-        description="Alternative to top_p and top_k.",
-        default=0.0,
-        min=0.0,
-        max=1.0,
-    ),
-    "seed": ParameterDefinition(
-        name="seed",
-        type="integer",
-        description="Seed for deterministic sampling.",
-    ),
-    "stop": ParameterDefinition(
-        name="stop",
-        type="array",
-        description="Stop sequences. The API will stop generating at these sequences.",
-    ),
-    "stream": ParameterDefinition(
-        name="stream",
-        type="boolean",
-        description="Stream the response as it is generated.",
-        default=False,
-    ),
-}
+_REGISTRY_DIR = Path(__file__).resolve().parent.parent.parent / "registry"
+
+# Build DEFAULT_PARAMETERS from registry JSON
+def _load_parameters() -> Dict[str, ParameterDefinition]:
+    raw = json.loads((_REGISTRY_DIR / "parameters.json").read_text())
+    params: Dict[str, ParameterDefinition] = {}
+    for name, d in raw.items():
+        params[name] = ParameterDefinition(name=name, required=False, **d)
+    return params
+
+DEFAULT_PARAMETERS: Dict[str, ParameterDefinition] = _load_parameters()
+
+# Build PLATFORM_PARAMS from registry JSON
+PLATFORM_PARAMS: frozenset = frozenset(
+    json.loads((_REGISTRY_DIR / "platform-params.json").read_text())
+)
 
 
 def get_model_parameters(model: OpenRouterModel) -> List[ParameterDefinition]:
@@ -162,22 +87,6 @@ def validate_parameter(
         return False, f"{name} must be one of: {', '.join(map(str, definition.enum))}"
 
     return True, None
-
-
-# OpenRouter platform-level parameters that are always allowed regardless
-# of the model's supported_parameters list.
-PLATFORM_PARAMS = frozenset({
-    "model", "messages", "stream", "stream_options",
-    "tools", "tool_choice", "parallel_tool_calls",
-    "reasoning", "include",
-    "response_format",
-    "provider", "models", "route",
-    "plugins",
-    "metadata", "trace", "session_id", "user",
-    "modalities",
-    "logprobs", "top_logprobs",
-    "cache_control", "service_tier",
-})
 
 
 def validate_parameters(

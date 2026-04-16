@@ -3,44 +3,34 @@ OpenRouter Auto - Error Handling
 Comprehensive error handling for OpenRouter API
 """
 
+import json
+from pathlib import Path
 from typing import Dict, Any, Optional
 from .types import OpenRouterError, OpenRouterErrorCode
 
-# Error code mapping from HTTP status codes
+_REGISTRY_DIR = Path(__file__).resolve().parent.parent.parent / "registry"
+_errors_data = json.loads((_REGISTRY_DIR / "errors.json").read_text())
+
+# Error code mapping from HTTP status codes (loaded from registry)
 ERROR_CODE_MAP: Dict[str, OpenRouterErrorCode] = {
-    "401": OpenRouterErrorCode.INVALID_API_KEY,
-    "403": OpenRouterErrorCode.INVALID_API_KEY,
-    "429": OpenRouterErrorCode.RATE_LIMITED,
-    "404": OpenRouterErrorCode.MODEL_NOT_FOUND,
-    "400": OpenRouterErrorCode.INVALID_PARAMETERS,
-    "402": OpenRouterErrorCode.INSUFFICIENT_CREDITS,
-    "500": OpenRouterErrorCode.PROVIDER_ERROR,
-    "502": OpenRouterErrorCode.PROVIDER_ERROR,
-    "503": OpenRouterErrorCode.PROVIDER_ERROR,
-    "504": OpenRouterErrorCode.PROVIDER_ERROR,
+    k: OpenRouterErrorCode(v) for k, v in _errors_data["code_map"].items()
+    if hasattr(OpenRouterErrorCode, v)
 }
 
-# User-friendly error messages
+# User-friendly error messages (loaded from registry)
 ERROR_MESSAGES: Dict[OpenRouterErrorCode, str] = {
-    OpenRouterErrorCode.INVALID_API_KEY: "Invalid or missing API key. Please check your OpenRouter API key.",
-    OpenRouterErrorCode.RATE_LIMITED: "Rate limit exceeded. Please wait before making more requests.",
-    OpenRouterErrorCode.MODEL_NOT_FOUND: "Model not found. The model may have been removed or renamed.",
-    OpenRouterErrorCode.MODEL_UNAVAILABLE: "Model is currently unavailable. This is common with free models. Try a different model.",
-    OpenRouterErrorCode.INVALID_PARAMETERS: "Invalid parameters provided. Please check your request parameters.",
-    OpenRouterErrorCode.INSUFFICIENT_CREDITS: "Insufficient credits. Please add more credits to your OpenRouter account.",
-    OpenRouterErrorCode.PROVIDER_ERROR: "The model provider encountered an error. Please try again or use a different model.",
-    OpenRouterErrorCode.NETWORK_ERROR: "Network error. Please check your internet connection.",
-    OpenRouterErrorCode.TIMEOUT: "Request timed out. The model may be experiencing high load.",
-    OpenRouterErrorCode.UNKNOWN: "An unknown error occurred. Please try again.",
+    OpenRouterErrorCode(k): v for k, v in _errors_data["messages"].items()
+    if hasattr(OpenRouterErrorCode, k)
 }
 
-# Retryable error codes
+# Retryable error codes (loaded from registry)
 RETRYABLE_ERRORS = [
-    OpenRouterErrorCode.RATE_LIMITED,
-    OpenRouterErrorCode.PROVIDER_ERROR,
-    OpenRouterErrorCode.NETWORK_ERROR,
-    OpenRouterErrorCode.TIMEOUT,
+    OpenRouterErrorCode(c) for c in _errors_data["retryable"]
+    if hasattr(OpenRouterErrorCode, c)
 ]
+
+# Tips (loaded from registry for formatErrorForDisplay)
+_TIPS: Dict[str, str] = _errors_data.get("tips", {})
 
 
 class OpenRouterAutoError(Exception):
@@ -154,17 +144,10 @@ def format_error_for_display(error: OpenRouterError) -> str:
     """Format error for display"""
     display = f"❌ {error.message}"
 
-    tips = {
-        OpenRouterErrorCode.RATE_LIMITED: "💡 Tip: Wait a few seconds before retrying.",
-        OpenRouterErrorCode.INSUFFICIENT_CREDITS: "💡 Tip: Visit https://openrouter.ai/credits to add more credits.",
-        OpenRouterErrorCode.MODEL_NOT_FOUND: "💡 Tip: Try refreshing the model list to get the latest models.",
-        OpenRouterErrorCode.MODEL_UNAVAILABLE: "💡 Tip: Free models are often intermittently unavailable. Use sdk.get_best_free_model() to find a working one, or pass skip_test=True to add_model() to bypass the check.",
-        OpenRouterErrorCode.PROVIDER_ERROR: "💡 Tip: This model may be temporarily unavailable. Try another model.",
-        OpenRouterErrorCode.INVALID_PARAMETERS: "💡 Tip: Check that your parameters are within the model's supported range.",
-    }
-
-    if error.code in tips:
-        display += f"\n{tips[error.code]}"
+    code_str = error.code.value if isinstance(error.code, OpenRouterErrorCode) else str(error.code)
+    tip = _TIPS.get(code_str)
+    if tip:
+        display += f"\n💡 Tip: {tip}"
 
     if error.retryable:
         display += "\n🔄 This error is retryable."

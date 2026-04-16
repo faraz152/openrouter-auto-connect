@@ -3,8 +3,13 @@ OpenRouter Auto - Cost Calculator
 Real-time cost estimation for OpenRouter models
 """
 
-from typing import List
+import json
+from pathlib import Path
+from typing import List, Optional
 from .types import OpenRouterModel, CostEstimate
+
+_REGISTRY_DIR = Path(__file__).resolve().parent.parent.parent / "registry"
+_cost_data = json.loads((_REGISTRY_DIR / "cost.json").read_text())
 
 
 def calculate_cost(
@@ -40,8 +45,8 @@ def estimate_tokens(text: str) -> int:
     """Estimate tokens from text (rough approximation)"""
     if not text:
         return 0
-    # 1 token ≈ 4 characters for English text
-    return (len(text) + 3) // 4
+    chars_per_token = _cost_data["token_estimate_chars_per_token"]
+    return (len(text) + chars_per_token - 1) // chars_per_token
 
 
 def calculate_chat_cost(
@@ -56,7 +61,7 @@ def calculate_chat_cost(
         content = message.get("content", "")
         prompt_tokens += estimate_tokens(content)
         # Add overhead for message format
-        prompt_tokens += 4
+        prompt_tokens += _cost_data["message_overhead_tokens"]
 
     return calculate_cost(model, prompt_tokens, expected_response_tokens)
 
@@ -128,9 +133,10 @@ def get_price_tier(model: OpenRouterModel) -> str:
     completion_price = float(model.pricing.completion) if model.pricing.completion else 0.0
     avg_price = (prompt_price + completion_price) / 2
 
-    if avg_price < 0.0001:
+    tiers = _cost_data["price_tiers"]
+    if tiers["cheap"]["max_avg_price"] is not None and avg_price < tiers["cheap"]["max_avg_price"]:
         return "cheap"
-    if avg_price < 0.01:
+    if tiers["moderate"]["max_avg_price"] is not None and avg_price < tiers["moderate"]["max_avg_price"]:
         return "moderate"
     return "expensive"
 

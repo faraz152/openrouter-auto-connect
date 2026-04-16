@@ -4,116 +4,16 @@
  */
 
 import { OpenRouterModel, ParameterDefinition } from "./types";
+import registryParams from "../../registry/parameters.json";
+import platformParamsList from "../../registry/platform-params.json";
 
-// Default parameter definitions with ranges
-export const DEFAULT_PARAMETERS: Record<string, ParameterDefinition> = {
-  temperature: {
-    name: "temperature",
-    type: "number",
-    description:
-      "Controls randomness. Lower = more deterministic, higher = more creative.",
-    default: 1.0,
-    min: 0,
-    max: 2,
-    required: false,
-  },
-  top_p: {
-    name: "top_p",
-    type: "number",
-    description:
-      "Nucleus sampling. Only consider tokens with top_p cumulative probability.",
-    default: 1.0,
-    min: 0,
-    max: 1,
-    required: false,
-  },
-  top_k: {
-    name: "top_k",
-    type: "integer",
-    description: "Only sample from the top K tokens.",
-    default: 0,
-    min: 0,
-    required: false,
-  },
-  max_tokens: {
-    name: "max_tokens",
-    type: "integer",
-    description: "Maximum number of tokens to generate.",
-    min: 1,
-    required: false,
-  },
-  max_completion_tokens: {
-    name: "max_completion_tokens",
-    type: "integer",
-    description: "Maximum completion tokens (alternative to max_tokens).",
-    min: 1,
-    required: false,
-  },
-  frequency_penalty: {
-    name: "frequency_penalty",
-    type: "number",
-    description: "Penalize tokens based on their frequency in the text so far.",
-    default: 0,
-    min: -2,
-    max: 2,
-    required: false,
-  },
-  presence_penalty: {
-    name: "presence_penalty",
-    type: "number",
-    description: "Penalize tokens that have appeared in the text so far.",
-    default: 0,
-    min: -2,
-    max: 2,
-    required: false,
-  },
-  repetition_penalty: {
-    name: "repetition_penalty",
-    type: "number",
-    description: "Penalize repetition of tokens.",
-    default: 1.0,
-    min: 0,
-    required: false,
-  },
-  min_p: {
-    name: "min_p",
-    type: "number",
-    description: "Minimum probability for a token to be considered.",
-    default: 0,
-    min: 0,
-    max: 1,
-    required: false,
-  },
-  top_a: {
-    name: "top_a",
-    type: "number",
-    description: "Alternative to top_p and top_k.",
-    default: 0,
-    min: 0,
-    max: 1,
-    required: false,
-  },
-  seed: {
-    name: "seed",
-    type: "integer",
-    description: "Seed for deterministic sampling.",
-    required: false,
-  },
-  stop: {
-    name: "stop",
-    type: "array",
-    description:
-      "Stop sequences. The API will stop generating at these sequences.",
-    required: false,
-  },
-  stream: {
-    name: "stream",
-    type: "boolean",
-    description: "Stream the response as it is generated.",
-    default: false,
-    required: false,
-  },
-};
+// Build DEFAULT_PARAMETERS from registry JSON
+export const DEFAULT_PARAMETERS: Record<string, ParameterDefinition> = {};
+for (const [name, def] of Object.entries(
+  registryParams as Record<string, Record<string, any>>,
+)) {
+  DEFAULT_PARAMETERS[name] = { name, required: false, ...def } as ParameterDefinition;
+}
 
 /**
  * Get parameter definitions for a specific model
@@ -210,31 +110,7 @@ export function validateParameter(
  * OpenRouter platform-level parameters that are always allowed
  * regardless of the model's supported_parameters list.
  */
-const PLATFORM_PARAMS = new Set([
-  "model",
-  "messages",
-  "stream",
-  "stream_options",
-  "tools",
-  "tool_choice",
-  "parallel_tool_calls",
-  "reasoning",
-  "include",
-  "response_format",
-  "provider",
-  "models",
-  "route",
-  "plugins",
-  "metadata",
-  "trace",
-  "session_id",
-  "user",
-  "modalities",
-  "logprobs",
-  "top_logprobs",
-  "cache_control",
-  "service_tier",
-]);
+const PLATFORM_PARAMS = new Set(platformParamsList);
 
 export function validateParameters(
   model: OpenRouterModel,
