@@ -46,6 +46,9 @@ config.json
 .DS_Store
 Thumbs.db
 
+# ── Live / local E2E tests (may contain secrets) ─────────────
+packages/python/live_e2e_test.py
+
 # ── Logs ──────────────────────────────────────────────────────
 *.log
 npm-debug.log*

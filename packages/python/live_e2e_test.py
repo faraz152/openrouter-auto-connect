@@ -9,6 +9,7 @@ Usage:
 
 import asyncio
 import json
+import os
 import sys
 import time
 import traceback
@@ -24,7 +25,10 @@ from openrouter_auto import (
 from openrouter_auto.types import ChatMessage, ChatRequest, ChatResponse
 
 # ── Config ───────────────────────────────────────────────────────────────────
-API_KEY = "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"
+API_KEY = os.environ.get("OPENROUTER_API_KEY", "")
+if not API_KEY:
+    print("ERROR: Set the OPENROUTER_API_KEY environment variable before running this test.")
+    sys.exit(1)
 
 # Models used across tests
 CHAT_MODEL = "openai/gpt-4.1-nano"          # cheap, fast, reliable
