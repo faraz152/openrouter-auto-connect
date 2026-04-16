@@ -4,7 +4,7 @@
  */
 
 import axios, { AxiosInstance } from "axios";
-import { calculateCost, estimateTokens } from "./cost";
+import { calculateCost, estimateTokens, getPriceTier, getBestFreeModel } from "./cost";
 import { OpenRouterAutoError, parseOpenRouterError } from "./errors";
 import {
   getModelParameters,
@@ -262,8 +262,22 @@ export class OpenRouterAuto {
         if (promptPrice > 0 || completionPrice > 0) return false;
       }
 
+      // Price tier filter
+      if (options.priceTier) {
+        if (getPriceTier(model) !== options.priceTier) return false;
+      }
+
       return true;
     });
+  }
+
+  /**
+   * Get the best free model available.
+   * Picks from text-capable free models, sorted by context length (largest first).
+   * Includes OpenRouter's explicit :free suffix variants.
+   */
+  getBestFreeModel(): OpenRouterModel | null {
+    return getBestFreeModel(this.models);
   }
 
   // ==================== Model Configuration ====================

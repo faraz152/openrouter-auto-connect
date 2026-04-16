@@ -63,6 +63,7 @@ export {
   estimateTokens,
   formatCost,
   formatPricePer1K,
+  getBestFreeModel,
   getCheapestModel,
   getCostBreakdown,
   getPriceTier,

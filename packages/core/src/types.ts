@@ -400,6 +400,8 @@ export interface ModelFilterOptions {
   supportedParameters?: string[];
   excludeModels?: string[];
   freeOnly?: boolean;
+  /** Filter by price tier: 'free' | 'cheap' | 'moderate' | 'expensive' */
+  priceTier?: "free" | "cheap" | "moderate" | "expensive";
 }
 
 // Cost Estimate

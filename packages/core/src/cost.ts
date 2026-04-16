@@ -113,9 +113,12 @@ export function getCheapestModel(
 }
 
 /**
- * Check if a model is free
+ * Check if a model is free.
+ * Catches both zero-price models and OpenRouter's explicit `:free` variant suffix
+ * (e.g. "google/gemma-3-27b-it:free") which have lower rate limits than paid variants.
  */
 export function isFreeModel(model: OpenRouterModel): boolean {
+  if (model.id.endsWith(":free")) return true;
   const promptPrice = parseFloat(model.pricing.prompt) || 0;
   const completionPrice = parseFloat(model.pricing.completion) || 0;
   return promptPrice === 0 && completionPrice === 0;
@@ -127,14 +130,33 @@ export function isFreeModel(model: OpenRouterModel): boolean {
 export function getPriceTier(
   model: OpenRouterModel,
 ): "free" | "cheap" | "moderate" | "expensive" {
+  if (isFreeModel(model)) return "free";
   const promptPrice = parseFloat(model.pricing.prompt) || 0;
   const completionPrice = parseFloat(model.pricing.completion) || 0;
   const avgPrice = (promptPrice + completionPrice) / 2;
 
-  if (avgPrice === 0) return "free";
   if (avgPrice < 0.0001) return "cheap";
   if (avgPrice < 0.01) return "moderate";
   return "expensive";
+}
+
+/**
+ * Get the best free model from a list.
+ * Prefers text-only models, sorted by context length (largest first).
+ * Free models with the `:free` OpenRouter suffix are included.
+ */
+export function getBestFreeModel(
+  models: OpenRouterModel[],
+): OpenRouterModel | null {
+  const free = models.filter(
+    (m) =>
+      isFreeModel(m) &&
+      m.architecture.input_modalities.includes("text") &&
+      m.architecture.output_modalities.includes("text"),
+  );
+  if (free.length === 0) return null;
+  // Sort by context length descending — more context = more capable
+  return free.sort((a, b) => b.context_length - a.context_length)[0];
 }
 
 /**

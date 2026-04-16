@@ -109,25 +109,46 @@ def get_cheapest_model(
 
 
 def is_free_model(model: OpenRouterModel) -> bool:
-    """Check if a model is free"""
+    """Check if a model is free.
+    Catches both zero-price models and OpenRouter's explicit :free variant suffix
+    (e.g. 'google/gemma-3-27b-it:free') which have lower rate limits than paid variants.
+    """
+    if model.id.endswith(":free"):
+        return True
     prompt_price = float(model.pricing.prompt) if model.pricing.prompt else 0.0
     completion_price = float(model.pricing.completion) if model.pricing.completion else 0.0
     return prompt_price == 0.0 and completion_price == 0.0
 
 
 def get_price_tier(model: OpenRouterModel) -> str:
-    """Get price tier for a model"""
+    """Get price tier for a model: 'free' | 'cheap' | 'moderate' | 'expensive'"""
+    if is_free_model(model):
+        return "free"
     prompt_price = float(model.pricing.prompt) if model.pricing.prompt else 0.0
     completion_price = float(model.pricing.completion) if model.pricing.completion else 0.0
     avg_price = (prompt_price + completion_price) / 2
 
-    if avg_price == 0:
-        return "free"
     if avg_price < 0.0001:
         return "cheap"
     if avg_price < 0.01:
         return "moderate"
     return "expensive"
+
+
+def get_best_free_model(models: List[OpenRouterModel]) -> Optional[OpenRouterModel]:
+    """Get the best free model from a list.
+    Prefers text-capable models, sorted by context length (largest first).
+    Includes OpenRouter's explicit :free suffix variants.
+    """
+    free = [
+        m for m in models
+        if is_free_model(m)
+        and "text" in m.architecture.input_modalities
+        and "text" in m.architecture.output_modalities
+    ]
+    if not free:
+        return None
+    return sorted(free, key=lambda m: m.context_length, reverse=True)[0]
 
 
 def calculate_monthly_estimate(

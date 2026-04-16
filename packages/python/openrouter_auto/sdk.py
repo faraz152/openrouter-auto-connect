@@ -36,7 +36,7 @@ from .storage import (
 )
 from .errors import parse_openrouter_error, OpenRouterAutoError
 from .parameters import get_model_parameters, validate_parameters, merge_with_defaults, sanitize_parameters
-from .cost import calculate_cost, estimate_tokens
+from .cost import calculate_cost, estimate_tokens, get_price_tier, get_best_free_model
 
 # Default test prompt
 DEFAULT_TEST_PROMPT = 'Say "Hello! This is a test message." and nothing else.'
@@ -154,6 +154,13 @@ class OpenRouterAuto:
                 return model
         return None
 
+    def get_best_free_model(self) -> Optional[OpenRouterModel]:
+        """Get the best free model available.
+        Picks from text-capable free models, sorted by context length (largest first).
+        Includes OpenRouter's explicit :free suffix variants.
+        """
+        return get_best_free_model(self.models)
+
     def filter_models(self, options: ModelFilterOptions = None) -> List[OpenRouterModel]:
         """Filter models based on criteria"""
         options = options or ModelFilterOptions()
@@ -217,6 +224,11 @@ class OpenRouterAuto:
                 prompt_price = float(model.pricing.prompt) if model.pricing.prompt else 0.0
                 completion_price = float(model.pricing.completion) if model.pricing.completion else 0.0
                 if prompt_price > 0 or completion_price > 0:
+                    continue
+
+            # Price tier filter
+            if options.price_tier:
+                if get_price_tier(model) != options.price_tier:
                     continue
 
             filtered.append(model)

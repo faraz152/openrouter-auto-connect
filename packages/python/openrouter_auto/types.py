@@ -337,6 +337,7 @@ class ModelFilterOptions:
     supported_parameters: Optional[List[str]] = None
     exclude_models: Optional[List[str]] = None
     free_only: Optional[bool] = None
+    price_tier: Optional[str] = None  # 'free' | 'cheap' | 'moderate' | 'expensive'
 
 
 @dataclass

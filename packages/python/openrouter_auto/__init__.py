@@ -42,6 +42,8 @@ from .cost import (
     calculate_chat_cost,
     format_cost,
     is_free_model,
+    get_price_tier,
+    get_best_free_model,
 )
 
 __version__ = "1.0.0"
@@ -80,4 +82,6 @@ __all__ = [
     "calculate_chat_cost",
     "format_cost",
     "is_free_model",
+    "get_price_tier",
+    "get_best_free_model",
 ]
