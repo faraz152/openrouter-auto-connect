@@ -216,6 +216,7 @@ class ChatRequest:
     seed: Optional[int] = None
     stop: Optional[Union[str, List[str]]] = None
     stream: Optional[bool] = None
+    stream_options: Optional[Dict[str, Any]] = None
     # Tool calling
     tools: Optional[List[Any]] = None
     tool_choice: Optional[Any] = None
@@ -225,6 +226,24 @@ class ChatRequest:
     include: Optional[List[str]] = None
     # Response format
     response_format: Optional[Any] = None
+    # Provider routing
+    provider: Optional[Dict[str, Any]] = None
+    models: Optional[List[str]] = None
+    route: Optional[str] = None
+    # Plugins (legacy)
+    plugins: Optional[List[Dict[str, Any]]] = None
+    # Observability / metadata
+    metadata: Optional[Dict[str, str]] = None
+    trace: Optional[Dict[str, Any]] = None
+    session_id: Optional[str] = None
+    user: Optional[str] = None
+    # Output modalities
+    modalities: Optional[List[str]] = None
+    # Misc advanced
+    logprobs: Optional[bool] = None
+    top_logprobs: Optional[int] = None
+    cache_control: Optional[Dict[str, Any]] = None
+    service_tier: Optional[str] = None
     # Catch-all for forward compatibility
     extra: Optional[Dict[str, Any]] = None
 
@@ -240,10 +259,15 @@ class ChatRequest:
             "temperature", "top_p", "top_k", "max_tokens",
             "max_completion_tokens",
             "frequency_penalty", "presence_penalty", "repetition_penalty",
-            "min_p", "top_a", "seed", "stop", "stream",
+            "min_p", "top_a", "seed", "stop", "stream", "stream_options",
             "tools", "tool_choice", "parallel_tool_calls",
             "reasoning", "include",
             "response_format",
+            "provider", "models", "route",
+            "plugins",
+            "metadata", "trace", "session_id", "user",
+            "modalities",
+            "logprobs", "top_logprobs", "cache_control", "service_tier",
         ]
         
         for param in optional_params:

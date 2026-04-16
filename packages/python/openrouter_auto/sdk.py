@@ -636,3 +636,39 @@ class StreamAccumulator:
             usage=self._usage,
             created=self._created,
         )
+
+
+# ==================== Helpers ====================
+
+def create_web_search_tool(
+    params: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Create a web search server tool to inject into a ChatRequest's tools list.
+
+    Usage:
+        request = ChatRequest(
+            model="openai/gpt-5.2",
+            messages=[...],
+            tools=[create_web_search_tool({"max_results": 3})],
+        )
+    """
+    tool: Dict[str, Any] = {"type": "openrouter:web_search"}
+    if params:
+        tool["parameters"] = params
+    return tool
+
+
+def enable_web_search(
+    request: ChatRequest,
+    params: Optional[Dict[str, Any]] = None,
+) -> ChatRequest:
+    """Return a copy of the request with web search enabled.
+    If the request already has tools, the web search tool is appended.
+    """
+    import copy
+    new_request = copy.copy(request)
+    web_tool = create_web_search_tool(params)
+    existing = list(request.tools or [])
+    existing.append(web_tool)
+    new_request.tools = existing
+    return new_request

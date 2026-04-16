@@ -3,7 +3,7 @@ OpenRouter Auto - Python SDK
 Auto-configure and use any OpenRouter model with zero setup
 """
 
-from .sdk import OpenRouterAuto, create_openrouter_auto, StreamAccumulator
+from .sdk import OpenRouterAuto, create_openrouter_auto, StreamAccumulator, create_web_search_tool, enable_web_search
 from .types import (
     OpenRouterModel,
     ModelConfig,
@@ -49,6 +49,8 @@ __all__ = [
     "OpenRouterAuto",
     "create_openrouter_auto",
     "StreamAccumulator",
+    "create_web_search_tool",
+    "enable_web_search",
     "OpenRouterModel",
     "ModelConfig",
     "ChatMessage",

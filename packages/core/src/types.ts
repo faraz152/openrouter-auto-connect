@@ -149,8 +149,17 @@ export interface ImageUrlContentPart {
   };
 }
 
+// Input audio content part
+export interface InputAudioContentPart {
+  type: 'input_audio';
+  input_audio: {
+    data: string;
+    format: 'wav' | 'mp3';
+  };
+}
+
 // Union of content parts
-export type ContentPart = TextContentPart | ImageUrlContentPart;
+export type ContentPart = TextContentPart | ImageUrlContentPart | InputAudioContentPart;
 
 // ==================== Annotation Types ====================
 
@@ -186,6 +195,89 @@ export interface ChatMessage {
   annotations?: Annotation[];
 }
 
+// ==================== Web Search Types ====================
+
+// User location for web search
+export interface WebSearchUserLocation {
+  type: 'approximate';
+  city?: string;
+  region?: string;
+  country?: string;
+  timezone?: string;
+}
+
+// Web search tool parameters
+export interface WebSearchParameters {
+  engine?: 'auto' | 'native' | 'exa' | 'firecrawl' | 'parallel';
+  max_results?: number;
+  max_total_results?: number;
+  search_context_size?: 'low' | 'medium' | 'high';
+  allowed_domains?: string[];
+  excluded_domains?: string[];
+  user_location?: WebSearchUserLocation;
+}
+
+// Web search server tool (passed in tools array)
+export interface WebSearchTool {
+  type: 'openrouter:web_search';
+  parameters?: WebSearchParameters;
+}
+
+// ==================== Provider Routing Types ====================
+
+export interface ProviderPreferences {
+  order?: string[];
+  allow_fallbacks?: boolean;
+  require_parameters?: boolean;
+  data_collection?: 'deny' | 'allow';
+  sort?: 'price' | 'throughput' | 'latency';
+  quantizations?: string[];
+  ignore?: string[];
+}
+
+// ==================== Streaming Types ====================
+
+// Stream options for the request
+export interface StreamOptions {
+  include_usage?: boolean;
+}
+
+// A single streaming chunk from the server
+export interface StreamChunk {
+  id: string;
+  object: 'chat.completion.chunk';
+  created: number;
+  model: string;
+  choices: {
+    index: number;
+    delta: {
+      role?: string;
+      content?: string;
+      reasoning?: string;
+      reasoning_content?: string;
+      tool_calls?: Partial<ToolCall & { index: number }>[];
+    };
+    finish_reason: string | null;
+  }[];
+  usage?: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+    completion_tokens_details?: CompletionTokensDetails;
+  };
+}
+
+// ==================== Plugin Types (legacy) ====================
+
+export interface WebPlugin {
+  id: 'web';
+  engine?: string;
+  max_results?: number;
+  search_prompt?: string;
+  include_domains?: string[];
+  exclude_domains?: string[];
+}
+
 // Chat Request
 export interface ChatRequest {
   model: string;
@@ -203,8 +295,9 @@ export interface ChatRequest {
   seed?: number;
   stop?: string | string[];
   stream?: boolean;
+  stream_options?: StreamOptions;
   // Tool calling
-  tools?: (ToolDefinition | Record<string, any>)[];
+  tools?: (ToolDefinition | WebSearchTool | Record<string, any>)[];
   tool_choice?: 'auto' | 'none' | { type: 'function'; function: { name: string } };
   parallel_tool_calls?: boolean;
   // Reasoning
@@ -212,6 +305,24 @@ export interface ChatRequest {
   include?: string[];
   // Response format
   response_format?: any;
+  // Provider routing
+  provider?: ProviderPreferences;
+  models?: string[];
+  route?: 'fallback';
+  // Plugins (legacy — prefer server tools)
+  plugins?: (WebPlugin | Record<string, any>)[];
+  // Observability / metadata
+  metadata?: Record<string, string>;
+  trace?: Record<string, any>;
+  session_id?: string;
+  user?: string;
+  // Output modalities
+  modalities?: ('text' | 'image' | 'audio')[];
+  // Misc advanced
+  logprobs?: boolean;
+  top_logprobs?: number;
+  cache_control?: Record<string, any>;
+  service_tier?: 'auto' | 'default' | 'flex' | 'priority' | 'scale';
   // Catch-all for forward compatibility
   [key: string]: any;
 }

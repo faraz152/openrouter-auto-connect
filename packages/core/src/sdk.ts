@@ -37,8 +37,11 @@ import {
   OpenRouterEventType,
   OpenRouterModel,
   StorageAdapter,
+  StreamChunk,
   ToolCall,
   UserPreferences,
+  WebSearchParameters,
+  WebSearchTool,
 } from "./types";
 
 // Default test prompt
@@ -486,9 +489,9 @@ export class OpenRouterAuto {
   }
 
   /**
-   * Stream a chat completion (returns async iterator)
+   * Stream a chat completion (returns async iterator of typed StreamChunks)
    */
-  async *streamChat(request: ChatRequest): AsyncGenerator<any, void, unknown> {
+  async *streamChat(request: ChatRequest): AsyncGenerator<StreamChunk, void, unknown> {
     const streamRequest = { ...request, stream: true };
 
     try {
@@ -675,6 +678,39 @@ export function createOpenRouterAuto(
   options: OpenRouterAutoOptions,
 ): OpenRouterAuto {
   return new OpenRouterAuto(options);
+}
+
+// ==================== Helpers ====================
+
+/**
+ * Create a web search server tool to inject into a ChatRequest's tools array.
+ *
+ * Usage:
+ *   const request: ChatRequest = {
+ *     model: 'openai/gpt-5.2',
+ *     messages: [...],
+ *     tools: [createWebSearchTool({ max_results: 3 })],
+ *   };
+ */
+export function createWebSearchTool(params?: WebSearchParameters): WebSearchTool {
+  const tool: WebSearchTool = { type: 'openrouter:web_search' };
+  if (params) {
+    tool.parameters = params;
+  }
+  return tool;
+}
+
+/**
+ * Return a shallow copy of the request with web search enabled.
+ * If the request already has tools, the web search tool is appended.
+ */
+export function enableWebSearch(
+  request: ChatRequest,
+  params?: WebSearchParameters,
+): ChatRequest {
+  const webTool = createWebSearchTool(params);
+  const existingTools = request.tools ?? [];
+  return { ...request, tools: [...existingTools, webTool] };
 }
 
 // ==================== Stream Accumulator ====================
