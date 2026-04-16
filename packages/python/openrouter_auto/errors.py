@@ -48,7 +48,9 @@ class OpenRouterAutoError(Exception):
 
     def __init__(self, error: OpenRouterError):
         super().__init__(error.message)
-        self.code = error.code
+        # Normalise to plain string — enum members print as "OpenRouterErrorCode.X"
+        # in Python 3.11+ when passed through str(), so always use .value
+        self.code = error.code.value if isinstance(error.code, OpenRouterErrorCode) else str(error.code)
         self.details = error.details
         self.retryable = error.retryable
         self.timestamp = __import__("datetime").datetime.now()
