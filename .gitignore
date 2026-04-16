@@ -31,6 +31,7 @@ config.json
 
 # ── Local planning files (not for repo) ──────────────────────
 .plan/
+.bug-fixes/
 .env
 .env.local
 .env.*.local
