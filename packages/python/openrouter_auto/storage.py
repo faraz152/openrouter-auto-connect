@@ -14,22 +14,22 @@ T = TypeVar("T")
 
 class StorageAdapter(ABC):
     """Abstract base class for storage adapters"""
-    
+
     @abstractmethod
     async def get(self, key: str) -> Optional[Any]:
         """Get value by key"""
         pass
-    
+
     @abstractmethod
     async def set(self, key: str, value: Any) -> None:
         """Set value by key"""
         pass
-    
+
     @abstractmethod
     async def remove(self, key: str) -> None:
         """Remove value by key"""
         pass
-    
+
     @abstractmethod
     async def clear(self) -> None:
         """Clear all values"""
@@ -38,31 +38,31 @@ class StorageAdapter(ABC):
 
 class MemoryStorage(StorageAdapter):
     """In-memory storage adapter"""
-    
+
     def __init__(self):
         self._store: Dict[str, Any] = {}
-    
+
     async def get(self, key: str) -> Optional[Any]:
         return self._store.get(key)
-    
+
     async def set(self, key: str, value: Any) -> None:
         self._store[key] = value
-    
+
     async def remove(self, key: str) -> None:
         self._store.pop(key, None)
-    
+
     async def clear(self) -> None:
         self._store.clear()
 
 
 class FileStorage(StorageAdapter):
     """File-based storage adapter"""
-    
+
     def __init__(self, config_path: str = "./.openrouter-auto.json"):
         self.config_path = Path(config_path)
         self._data: Dict[str, Any] = {}
         self._load()
-    
+
     def _load(self) -> None:
         """Load data from file"""
         try:
@@ -72,7 +72,7 @@ class FileStorage(StorageAdapter):
         except Exception as e:
             print(f"Error loading config file: {e}")
             self._data = {}
-    
+
     def _save(self) -> None:
         """Save data to file"""
         import stat
@@ -84,27 +84,27 @@ class FileStorage(StorageAdapter):
             self.config_path.chmod(stat.S_IRUSR | stat.S_IWUSR)
         except Exception as e:
             print(f"Error saving config file: {e}")
-    
+
     async def get(self, key: str) -> Optional[Any]:
         return self._data.get(key)
-    
+
     async def set(self, key: str, value: Any) -> None:
         self._data[key] = value
         self._save()
-    
+
     async def remove(self, key: str) -> None:
         if key in self._data:
             del self._data[key]
             self._save()
-    
+
     async def clear(self) -> None:
         self._data.clear()
         self._save()
-    
+
     def get_config(self) -> Dict[str, Any]:
         """Get full config"""
         return dict(self._data)
-    
+
     def set_config(self, config: Dict[str, Any]) -> None:
         """Set full config"""
         self._data = dict(config)
@@ -148,7 +148,7 @@ async def get_model_configs(storage: StorageAdapter) -> Dict[str, Any]:
 async def set_model_config(storage: StorageAdapter, model_id: str, config: Any) -> None:
     """Set model config"""
     from .types import ModelConfig
-    
+
     configs = await get_model_configs(storage)
     if isinstance(config, ModelConfig):
         configs[model_id] = config.to_dict()

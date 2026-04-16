@@ -3,39 +3,55 @@
  * Main SDK class for auto-configuring and using OpenRouter models
  */
 
-import axios, { AxiosInstance, AxiosError } from 'axios';
+import axios, { AxiosInstance } from "axios";
+import { calculateCost, estimateTokens } from "./cost";
+import { OpenRouterAutoError, parseOpenRouterError } from "./errors";
 import {
-  OpenRouterAutoOptions,
-  OpenRouterModel,
+  getModelParameters,
+  mergeWithDefaults,
+  sanitizeParameters,
+  validateParameters,
+} from "./parameters";
+import {
+  createStorage,
+  getModelConfigs,
+  getStoredModels,
+  getUserPreferences,
+  removeModelConfig,
+  setModelConfig,
+  setStoredModels,
+  setUserPreferences,
+  STORAGE_KEYS,
+} from "./storage";
+import {
   ChatRequest,
   ChatResponse,
+  CostEstimate,
+  EventHandler,
   ModelConfig,
-  ModelTestResult,
-  UserPreferences,
   ModelFilterOptions,
+  ModelTestResult,
+  OpenRouterAutoOptions,
   OpenRouterEvent,
   OpenRouterEventType,
-  EventHandler,
+  OpenRouterModel,
   StorageAdapter,
-  CostEstimate,
-} from './types';
-import { parseOpenRouterError, OpenRouterAutoError } from './errors';
-import { createStorage, STORAGE_KEYS, getStoredModels, setStoredModels, getModelConfigs, setModelConfig, removeModelConfig, getUserPreferences, setUserPreferences } from './storage';
-import { getModelParameters, validateParameters, mergeWithDefaults, sanitizeParameters } from './parameters';
-import { calculateCost, estimateTokens } from './cost';
+  UserPreferences,
+} from "./types";
 
 // Default test prompt
-const DEFAULT_TEST_PROMPT = 'Say "Hello! This is a test message." and nothing else.';
+const DEFAULT_TEST_PROMPT =
+  'Say "Hello! This is a test message." and nothing else.';
 
 // Default options
 const DEFAULT_OPTIONS: Partial<OpenRouterAutoOptions> = {
-  baseUrl: 'https://openrouter.ai/api/v1',
+  baseUrl: "https://openrouter.ai/api/v1",
   autoFetch: true,
   fetchInterval: 3600000, // 1 hour
   cacheDuration: 3600000, // 1 hour
   enableTesting: true,
   testPrompt: DEFAULT_TEST_PROMPT,
-  storageType: 'memory',
+  storageType: "memory",
 };
 
 export class OpenRouterAuto {
@@ -44,23 +60,26 @@ export class OpenRouterAuto {
   private storage: StorageAdapter;
   private models: OpenRouterModel[] = [];
   private modelConfigs: Record<string, ModelConfig> = {};
-  private eventHandlers: Map<OpenRouterEventType, Set<EventHandler>> = new Map();
+  private eventHandlers: Map<OpenRouterEventType, Set<EventHandler>> =
+    new Map();
   private fetchTimer?: NodeJS.Timeout;
 
   constructor(options: OpenRouterAutoOptions) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
-    
+
     // Initialize storage
-    this.storage = this.options.storage || createStorage(
-      this.options.storageType || 'memory',
-      this.options.configPath
-    );
+    this.storage =
+      this.options.storage ||
+      createStorage(
+        this.options.storageType || "memory",
+        this.options.configPath,
+      );
 
     // Initialize axios
     this.axios = axios.create({
       baseURL: this.options.baseUrl,
       headers: {
-        'Content-Type': 'application/json',
+        "Content-Type": "application/json",
       },
       timeout: 60000, // 60 second timeout
     });
@@ -89,9 +108,10 @@ export class OpenRouterAuto {
 
     // Fetch fresh models if needed
     const lastFetch = await this.storage.get<number>(STORAGE_KEYS.LAST_FETCH);
-    const shouldFetch = !lastFetch || 
-      (Date.now() - lastFetch > (this.options.cacheDuration || 3600000));
-    
+    const shouldFetch =
+      !lastFetch ||
+      Date.now() - lastFetch > (this.options.cacheDuration || 3600000);
+
     if (shouldFetch || this.models.length === 0) {
       await this.fetchModels();
     }
@@ -109,15 +129,15 @@ export class OpenRouterAuto {
    */
   async fetchModels(): Promise<OpenRouterModel[]> {
     try {
-      const response = await this.axios.get('/models');
+      const response = await this.axios.get("/models");
       this.models = response.data.data || [];
-      
+
       // Cache models
       await setStoredModels(this.storage, this.models);
       await this.storage.set(STORAGE_KEYS.LAST_FETCH, Date.now());
 
       // Emit event
-      this.emit('models:updated', { count: this.models.length });
+      this.emit("models:updated", { count: this.models.length });
 
       return this.models;
     } catch (error) {
@@ -138,31 +158,34 @@ export class OpenRouterAuto {
    * Get a specific model by ID
    */
   getModel(modelId: string): OpenRouterModel | undefined {
-    return this.models.find(m => m.id === modelId);
+    return this.models.find((m) => m.id === modelId);
   }
 
   /**
    * Filter models based on criteria
    */
   filterModels(options: ModelFilterOptions = {}): OpenRouterModel[] {
-    return this.models.filter(model => {
+    return this.models.filter((model) => {
       // Modality filter
-      if (options.modality && model.architecture.modality !== options.modality) {
+      if (
+        options.modality &&
+        model.architecture.modality !== options.modality
+      ) {
         return false;
       }
 
       // Input modalities filter
       if (options.inputModalities) {
-        const hasAll = options.inputModalities.every(m => 
-          model.architecture.input_modalities.includes(m)
+        const hasAll = options.inputModalities.every((m) =>
+          model.architecture.input_modalities.includes(m),
         );
         if (!hasAll) return false;
       }
 
       // Output modalities filter
       if (options.outputModalities) {
-        const hasAll = options.outputModalities.every(m => 
-          model.architecture.output_modalities.includes(m)
+        const hasAll = options.outputModalities.every((m) =>
+          model.architecture.output_modalities.includes(m),
         );
         if (!hasAll) return false;
       }
@@ -171,29 +194,38 @@ export class OpenRouterAuto {
       if (options.maxPrice !== undefined) {
         const promptPrice = parseFloat(model.pricing.prompt) || 0;
         const completionPrice = parseFloat(model.pricing.completion) || 0;
-        if (promptPrice > options.maxPrice || completionPrice > options.maxPrice) {
+        if (
+          promptPrice > options.maxPrice ||
+          completionPrice > options.maxPrice
+        ) {
           return false;
         }
       }
 
       // Context length filters
-      if (options.minContextLength && model.context_length < options.minContextLength) {
+      if (
+        options.minContextLength &&
+        model.context_length < options.minContextLength
+      ) {
         return false;
       }
-      if (options.maxContextLength && model.context_length > options.maxContextLength) {
+      if (
+        options.maxContextLength &&
+        model.context_length > options.maxContextLength
+      ) {
         return false;
       }
 
       // Provider filter
       if (options.provider) {
-        const provider = model.id.split('/')[0];
+        const provider = model.id.split("/")[0];
         if (provider !== options.provider) return false;
       }
 
       // Search filter
       if (options.search) {
         const searchLower = options.search.toLowerCase();
-        const matches = 
+        const matches =
           model.id.toLowerCase().includes(searchLower) ||
           model.name.toLowerCase().includes(searchLower) ||
           model.description?.toLowerCase().includes(searchLower);
@@ -202,8 +234,8 @@ export class OpenRouterAuto {
 
       // Supported parameters filter
       if (options.supportedParameters) {
-        const hasAll = options.supportedParameters.every(p =>
-          model.supported_parameters?.includes(p)
+        const hasAll = options.supportedParameters.every((p) =>
+          model.supported_parameters?.includes(p),
         );
         if (!hasAll) return false;
       }
@@ -229,11 +261,14 @@ export class OpenRouterAuto {
   /**
    * Add and configure a model
    */
-  async addModel(modelId: string, parameters: Record<string, any> = {}): Promise<ModelConfig> {
+  async addModel(
+    modelId: string,
+    parameters: Record<string, any> = {},
+  ): Promise<ModelConfig> {
     const model = this.getModel(modelId);
     if (!model) {
       throw new OpenRouterAutoError({
-        code: 'MODEL_NOT_FOUND',
+        code: "MODEL_NOT_FOUND",
         message: `Model '${modelId}' not found. Please fetch models first.`,
         retryable: false,
       });
@@ -244,9 +279,9 @@ export class OpenRouterAuto {
     if (!validation.valid) {
       const errorMessage = Object.entries(validation.errors)
         .map(([key, msg]) => `${key}: ${msg}`)
-        .join(', ');
+        .join(", ");
       throw new OpenRouterAutoError({
-        code: 'INVALID_PARAMETERS',
+        code: "INVALID_PARAMETERS",
         message: `Invalid parameters: ${errorMessage}`,
         retryable: false,
       });
@@ -263,7 +298,7 @@ export class OpenRouterAuto {
     // Test the model if enabled
     if (this.options.enableTesting) {
       const testResult = await this.testModel(modelId, config.parameters);
-      config.testStatus = testResult.success ? 'success' : 'failed';
+      config.testStatus = testResult.success ? "success" : "failed";
       config.testError = testResult.error;
       config.lastTested = new Date();
     }
@@ -273,7 +308,7 @@ export class OpenRouterAuto {
     await setModelConfig(this.storage, modelId, config);
 
     // Emit event
-    this.emit('model:added', { modelId, config });
+    this.emit("model:added", { modelId, config });
 
     return config;
   }
@@ -284,7 +319,7 @@ export class OpenRouterAuto {
   async removeModel(modelId: string): Promise<void> {
     delete this.modelConfigs[modelId];
     await removeModelConfig(this.storage, modelId);
-    this.emit('model:removed', { modelId });
+    this.emit("model:removed", { modelId });
   }
 
   /**
@@ -304,11 +339,14 @@ export class OpenRouterAuto {
   /**
    * Update model parameters
    */
-  async updateModelParameters(modelId: string, parameters: Record<string, any>): Promise<ModelConfig> {
+  async updateModelParameters(
+    modelId: string,
+    parameters: Record<string, any>,
+  ): Promise<ModelConfig> {
     const config = this.modelConfigs[modelId];
     if (!config) {
       throw new OpenRouterAutoError({
-        code: 'MODEL_NOT_FOUND',
+        code: "MODEL_NOT_FOUND",
         message: `Model '${modelId}' is not configured. Add it first.`,
         retryable: false,
       });
@@ -318,7 +356,7 @@ export class OpenRouterAuto {
     const validation = validateParameters(model, parameters);
     if (!validation.valid) {
       throw new OpenRouterAutoError({
-        code: 'INVALID_PARAMETERS',
+        code: "INVALID_PARAMETERS",
         message: `Invalid parameters: ${JSON.stringify(validation.errors)}`,
         retryable: false,
       });
@@ -326,7 +364,7 @@ export class OpenRouterAuto {
 
     config.parameters = { ...config.parameters, ...parameters };
     await setModelConfig(this.storage, modelId, config);
-    this.emit('config:changed', { modelId, config });
+    this.emit("config:changed", { modelId, config });
 
     return config;
   }
@@ -336,20 +374,26 @@ export class OpenRouterAuto {
   /**
    * Test a model with a basic call
    */
-  async testModel(modelId: string, parameters: Record<string, any> = {}): Promise<ModelTestResult> {
+  async testModel(
+    modelId: string,
+    parameters: Record<string, any> = {},
+  ): Promise<ModelTestResult> {
     const startTime = Date.now();
-    
+
     try {
       const request: ChatRequest = {
         model: modelId,
         messages: [
-          { role: 'user', content: this.options.testPrompt || DEFAULT_TEST_PROMPT }
+          {
+            role: "user",
+            content: this.options.testPrompt || DEFAULT_TEST_PROMPT,
+          },
         ],
         max_tokens: 50,
         ...parameters,
       };
 
-      const response = await this.axios.post('/chat/completions', request);
+      const response = await this.axios.post("/chat/completions", request);
       const responseTime = Date.now() - startTime;
 
       return {
@@ -378,19 +422,19 @@ export class OpenRouterAuto {
    */
   async testAllModels(): Promise<ModelTestResult[]> {
     const results: ModelTestResult[] = [];
-    
+
     for (const modelId of Object.keys(this.modelConfigs)) {
       const config = this.modelConfigs[modelId];
       const result = await this.testModel(modelId, config.parameters);
-      
+
       // Update config with test result
-      config.testStatus = result.success ? 'success' : 'failed';
+      config.testStatus = result.success ? "success" : "failed";
       config.testError = result.error;
       config.lastTested = new Date();
       await setModelConfig(this.storage, modelId, config);
-      
+
       results.push(result);
-      this.emit('model:tested', { modelId, result });
+      this.emit("model:tested", { modelId, result });
     }
 
     return results;
@@ -405,7 +449,7 @@ export class OpenRouterAuto {
     const model = this.getModel(request.model);
     if (!model) {
       throw new OpenRouterAutoError({
-        code: 'MODEL_NOT_FOUND',
+        code: "MODEL_NOT_FOUND",
         message: `Model '${request.model}' not found`,
         retryable: false,
       });
@@ -413,9 +457,9 @@ export class OpenRouterAuto {
 
     // Get model config if exists
     const config = this.modelConfigs[request.model];
-    
+
     // Merge parameters: config defaults < request parameters
-    const mergedParams = config 
+    const mergedParams = config
       ? { ...config.parameters, ...sanitizeParameters(request) }
       : sanitizeParameters(request);
 
@@ -423,14 +467,14 @@ export class OpenRouterAuto {
     const validation = validateParameters(model, mergedParams);
     if (!validation.valid) {
       throw new OpenRouterAutoError({
-        code: 'INVALID_PARAMETERS',
+        code: "INVALID_PARAMETERS",
         message: `Invalid parameters: ${JSON.stringify(validation.errors)}`,
         retryable: false,
       });
     }
 
     try {
-      const response = await this.axios.post('/chat/completions', mergedParams);
+      const response = await this.axios.post("/chat/completions", mergedParams);
       return response.data;
     } catch (error) {
       const parsedError = parseOpenRouterError(error);
@@ -444,22 +488,29 @@ export class OpenRouterAuto {
    */
   async *streamChat(request: ChatRequest): AsyncGenerator<any, void, unknown> {
     const streamRequest = { ...request, stream: true };
-    
+
     try {
-      const response = await this.axios.post('/chat/completions', streamRequest, {
-        responseType: 'stream',
-      });
+      const response = await this.axios.post(
+        "/chat/completions",
+        streamRequest,
+        {
+          responseType: "stream",
+        },
+      );
 
       const stream = response.data;
-      
+
       for await (const chunk of stream) {
-        const lines = chunk.toString().split('\n').filter((line: string) => line.trim());
-        
+        const lines = chunk
+          .toString()
+          .split("\n")
+          .filter((line: string) => line.trim());
+
         for (const line of lines) {
-          if (line.startsWith('data: ')) {
+          if (line.startsWith("data: ")) {
             const data = line.slice(6);
-            if (data === '[DONE]') return;
-            
+            if (data === "[DONE]") return;
+
             try {
               const parsed = JSON.parse(data);
               yield parsed;
@@ -481,7 +532,11 @@ export class OpenRouterAuto {
   /**
    * Calculate cost for a request
    */
-  calculateCost(modelId: string, promptTokens: number, completionTokens?: number): CostEstimate {
+  calculateCost(
+    modelId: string,
+    promptTokens: number,
+    completionTokens?: number,
+  ): CostEstimate {
     const model = this.getModel(modelId);
     if (!model) {
       throw new Error(`Model '${modelId}' not found`);
@@ -502,7 +557,9 @@ export class OpenRouterAuto {
    * Save user preferences
    */
   async savePreferences(preferences: Partial<UserPreferences>): Promise<void> {
-    const current = await getUserPreferences(this.storage) || { apiKey: this.options.apiKey };
+    const current = (await getUserPreferences(this.storage)) || {
+      apiKey: this.options.apiKey,
+    };
     const updated = { ...current, ...preferences };
     // Never persist the API key to storage — strip it before saving
     const { apiKey: _stripped, ...safePreferences } = updated;
@@ -547,11 +604,11 @@ export class OpenRouterAuto {
     this.options.onEvent?.(event);
 
     // Call specific handlers
-    this.eventHandlers.get(type)?.forEach(handler => {
+    this.eventHandlers.get(type)?.forEach((handler) => {
       try {
         handler(event);
       } catch (error) {
-        console.error('Error in event handler:', error);
+        console.error("Error in event handler:", error);
       }
     });
   }
@@ -567,8 +624,8 @@ export class OpenRouterAuto {
     }
 
     this.fetchTimer = setInterval(() => {
-      this.fetchModels().catch(error => {
-        console.error('Auto-fetch error:', error);
+      this.fetchModels().catch((error) => {
+        console.error("Auto-fetch error:", error);
       });
     }, this.options.fetchInterval);
   }
@@ -599,7 +656,7 @@ export class OpenRouterAuto {
    */
   private handleError(error: any): void {
     this.options.onError?.(error);
-    this.emit('error', error);
+    this.emit("error", error);
   }
 
   /**
@@ -612,6 +669,8 @@ export class OpenRouterAuto {
 }
 
 // Export factory function
-export function createOpenRouterAuto(options: OpenRouterAutoOptions): OpenRouterAuto {
+export function createOpenRouterAuto(
+  options: OpenRouterAutoOptions,
+): OpenRouterAuto {
   return new OpenRouterAuto(options);
 }

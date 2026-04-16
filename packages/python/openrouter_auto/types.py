@@ -86,10 +86,10 @@ class OpenRouterModel:
                 tokenizer=data["architecture"].get("tokenizer"),
             ),
             pricing=ModelPricing(
-                prompt=data["pricing"]["prompt"],
-                completion=data["pricing"]["completion"],
-                image=data["pricing"]["image"],
-                request=data["pricing"]["request"],
+                prompt=data["pricing"].get("prompt", "0"),
+                completion=data["pricing"].get("completion", "0"),
+                image=data["pricing"].get("image", "0"),
+                request=data["pricing"].get("request", "0"),
             ),
             supported_parameters=data.get("supported_parameters", []),
             top_provider=TopProvider(
@@ -302,3 +302,19 @@ StorageType = str
 EventHandler = Callable[[OpenRouterEvent], None]
 ErrorHandler = Callable[[OpenRouterError], None]
 EventType = str
+
+
+@dataclass
+class OpenRouterAutoOptions:
+    """SDK initialisation options"""
+    api_key: str
+    base_url: str = "https://openrouter.ai/api/v1"
+    storage_type: str = "memory"
+    config_path: Optional[str] = None
+    auto_fetch: bool = True
+    fetch_interval: int = 3600
+    cache_duration: int = 3600
+    enable_testing: bool = True
+    test_prompt: Optional[str] = None
+    on_error: Optional[ErrorHandler] = None
+    on_event: Optional[EventHandler] = None

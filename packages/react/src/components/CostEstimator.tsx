@@ -146,7 +146,7 @@ export function CostEstimator({
   style = {},
   className = '',
 }: CostEstimatorProps) {
-  const { getModel, calculateCost, estimateTokens } = useOpenRouter();
+  const { getModel, calculateCost } = useOpenRouter();
   
   const [promptTokens, setPromptTokens] = useState(defaultPromptTokens);
   const [completionTokens, setCompletionTokens] = useState(defaultCompletionTokens);

@@ -12,12 +12,12 @@ A **monorepo SDK** that automatically fetches, validates, and manages all 300+ O
 
 ## What is this?
 
-| Before | After |
-|--------|-------|
-| Hardcode model IDs | Auto-fetch all 300+ models |
+| Before                  | After                                      |
+| ----------------------- | ------------------------------------------ |
+| Hardcode model IDs      | Auto-fetch all 300+ models                 |
 | Manual parameter config | Dynamic validation from model capabilities |
-| No cost preview | Real-time cost estimation |
-| Framework-specific | TypeScript + React + Python |
+| No cost preview         | Real-time cost estimation                  |
+| Framework-specific      | TypeScript + React + Python                |
 
 ---
 
@@ -85,7 +85,7 @@ npm run build
 Then import from the built packages:
 
 ```typescript
-import { OpenRouterAuto } from './packages/core/dist';
+import { OpenRouterAuto } from "./packages/core/dist";
 ```
 
 ### Python
@@ -104,7 +104,7 @@ pip install -e ".[dev]"
 ### TypeScript
 
 ```typescript
-import { OpenRouterAuto } from '@openrouter-auto/core';
+import { OpenRouterAuto } from "@openrouter-auto/core";
 
 const or = new OpenRouterAuto({
   apiKey: process.env.OPENROUTER_API_KEY!,
@@ -117,22 +117,26 @@ const models = or.getModels();
 console.log(`Loaded ${models.length} models`);
 
 // Add a model — parameters auto-validated
-await or.addModel('anthropic/claude-3.5-sonnet', {
+await or.addModel("anthropic/claude-3.5-sonnet", {
   temperature: 0.7,
   max_tokens: 1000,
 });
 
 // Chat
 const response = await or.chat({
-  model: 'anthropic/claude-3.5-sonnet',
-  messages: [{ role: 'user', content: 'Hello!' }],
+  model: "anthropic/claude-3.5-sonnet",
+  messages: [{ role: "user", content: "Hello!" }],
 });
 ```
 
 ### React
 
 ```tsx
-import { OpenRouterProvider, ModelSelector, ModelConfigPanel } from '@openrouter-auto/react';
+import {
+  OpenRouterProvider,
+  ModelSelector,
+  ModelConfigPanel,
+} from "@openrouter-auto/react";
 
 function App() {
   return (
@@ -155,7 +159,7 @@ function MyApp() {
       {selectedModel && (
         <ModelConfigPanel
           modelId={selectedModel}
-          onSave={(config) => console.log('Saved:', config)}
+          onSave={(config) => console.log("Saved:", config)}
         />
       )}
     </div>
@@ -211,15 +215,15 @@ openrouter-auto chat anthropic/claude-3.5-sonnet "Hello!"
 
 ```typescript
 // Filter by price, context, modality, provider
-const freeModels  = or.filterModels({ freeOnly: true });
-const bigModels   = or.filterModels({ minContextLength: 100000 });
-const cheapModels = or.filterModels({ maxPrice: 0.001, provider: 'openai' });
+const freeModels = or.filterModels({ freeOnly: true });
+const bigModels = or.filterModels({ minContextLength: 100000 });
+const cheapModels = or.filterModels({ maxPrice: 0.001, provider: "openai" });
 ```
 
 ### Cost Estimation
 
 ```typescript
-const cost = or.calculateCost('anthropic/claude-3.5-sonnet', 1000, 500);
+const cost = or.calculateCost("anthropic/claude-3.5-sonnet", 1000, 500);
 console.log(cost.totalCost); // in USD
 ```
 
@@ -227,22 +231,26 @@ console.log(cost.totalCost); // in USD
 
 ```typescript
 // Memory (default — no persistence)
-new OpenRouterAuto({ apiKey: '...', storageType: 'memory' });
+new OpenRouterAuto({ apiKey: "...", storageType: "memory" });
 
 // localStorage (browser)
-new OpenRouterAuto({ apiKey: '...', storageType: 'localStorage' });
+new OpenRouterAuto({ apiKey: "...", storageType: "localStorage" });
 
 // Config file (Node.js / Python)
-new OpenRouterAuto({ apiKey: '...', storageType: 'file', configPath: './.openrouter-auto.json' });
+new OpenRouterAuto({
+  apiKey: "...",
+  storageType: "file",
+  configPath: "./.openrouter-auto.json",
+});
 ```
 
 ### Error Handling
 
 ```typescript
 try {
-  await or.chat({ model: 'bad-model', messages: [] });
+  await or.chat({ model: "bad-model", messages: [] });
 } catch (error) {
-  console.log(error.code);      // 'MODEL_NOT_FOUND'
+  console.log(error.code); // 'MODEL_NOT_FOUND'
   console.log(error.retryable); // false
 }
 ```
@@ -302,7 +310,6 @@ See [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) for the full architecture diagram.
 
 MIT © [faraz152](https://github.com/faraz152)
 
-
 ## 🎯 What is OpenRouter Auto?
 
 OpenRouter Auto is a **zero-configuration SDK** that automatically fetches, configures, and manages all 300+ OpenRouter models. No more hardcoding model IDs or manually configuring parameters!
@@ -344,11 +351,11 @@ pip install openrouter-auto
 ### JavaScript/TypeScript
 
 ```typescript
-import { OpenRouterAuto } from 'openrouter-auto';
+import { OpenRouterAuto } from "openrouter-auto";
 
 // Initialize with just your API key
 const or = new OpenRouterAuto({
-  apiKey: 'your-openrouter-api-key',
+  apiKey: "your-openrouter-api-key",
 });
 
 await or.initialize();
@@ -358,22 +365,27 @@ const models = or.getModels();
 console.log(`Loaded ${models.length} models`);
 
 // Add a model - parameters auto-validated!
-await or.addModel('anthropic/claude-3.5-sonnet', {
+await or.addModel("anthropic/claude-3.5-sonnet", {
   temperature: 0.7,
   max_tokens: 1000,
 });
 
 // Use the model - no configuration needed!
 const response = await or.chat({
-  model: 'anthropic/claude-3.5-sonnet',
-  messages: [{ role: 'user', content: 'Hello!' }],
+  model: "anthropic/claude-3.5-sonnet",
+  messages: [{ role: "user", content: "Hello!" }],
 });
 ```
 
 ### React
 
 ```tsx
-import { OpenRouterProvider, ModelSelector, ModelConfigPanel, useOpenRouter } from 'openrouter-auto/react';
+import {
+  OpenRouterProvider,
+  ModelSelector,
+  ModelConfigPanel,
+  useOpenRouter,
+} from "openrouter-auto/react";
 
 function App() {
   return (
@@ -394,7 +406,7 @@ function MyApp() {
         value={selectedModel}
         onChange={(modelId, model) => {
           setSelectedModel(modelId);
-          console.log('Selected:', model.name);
+          console.log("Selected:", model.name);
         }}
       />
 
@@ -403,7 +415,7 @@ function MyApp() {
         <ModelConfigPanel
           modelId={selectedModel}
           onSave={(config) => {
-            console.log('Model configured:', config);
+            console.log("Model configured:", config);
           }}
         />
       )}
@@ -424,25 +436,25 @@ async def main():
         "api_key": "your-openrouter-api-key",
         "storage_type": "file",  # Saves config to .openrouter-auto.json
     })
-    
+
     await or_auto.initialize()
-    
+
     # Get all models (auto-fetched!)
     models = or_auto.get_models()
     print(f"Loaded {len(models)} models")
-    
+
     # Add a model - parameters auto-validated!
     config = await or_auto.add_model(
         "anthropic/claude-3.5-sonnet",
         parameters={"temperature": 0.7, "max_tokens": 1000}
     )
-    
+
     # Use the model - no configuration needed!
     response = await or_auto.chat({
         "model": "anthropic/claude-3.5-sonnet",
         "messages": [{"role": "user", "content": "Hello!"}],
     })
-    
+
     print(response.choices[0]["message"]["content"])
 
 asyncio.run(main())
@@ -474,7 +486,7 @@ Add models with automatic parameter validation:
 
 ```typescript
 // Add model with parameters
-const config = await or.addModel('anthropic/claude-3.5-sonnet', {
+const config = await or.addModel("anthropic/claude-3.5-sonnet", {
   temperature: 0.7,
   max_tokens: 1000,
 });
@@ -483,7 +495,7 @@ const config = await or.addModel('anthropic/claude-3.5-sonnet', {
 console.log(config.testStatus); // 'success' or 'failed'
 
 // Update parameters
-await or.updateModelParameters('anthropic/claude-3.5-sonnet', {
+await or.updateModelParameters("anthropic/claude-3.5-sonnet", {
   temperature: 0.5,
 });
 ```
@@ -494,7 +506,7 @@ Calculate costs before making requests:
 
 ```typescript
 // Calculate cost for tokens
-const cost = or.calculateCost('anthropic/claude-3.5-sonnet', 1000, 500);
+const cost = or.calculateCost("anthropic/claude-3.5-sonnet", 1000, 500);
 console.log(cost.totalCost); // $0.000045
 
 // Estimate from text
@@ -508,7 +520,7 @@ Smart error handling with helpful tips:
 
 ```typescript
 try {
-  await or.chat({ model: 'invalid-model', messages: [] });
+  await or.chat({ model: "invalid-model", messages: [] });
 } catch (error) {
   console.log(error.code); // 'MODEL_NOT_FOUND'
   console.log(error.message); // User-friendly message
@@ -539,8 +551,8 @@ Configure model parameters with validation:
 ```tsx
 <ModelConfigPanel
   modelId="anthropic/claude-3.5-sonnet"
-  onSave={(config) => console.log('Saved:', config)}
-  onTest={(result) => console.log('Test:', result.success)}
+  onSave={(config) => console.log("Saved:", config)}
+  onTest={(result) => console.log("Test:", result.success)}
   showTestButton={true}
 />
 ```
@@ -577,21 +589,21 @@ Choose how to store configurations:
 ```typescript
 // Memory (default, no persistence)
 const or = new OpenRouterAuto({
-  apiKey: '...',
-  storageType: 'memory',
+  apiKey: "...",
+  storageType: "memory",
 });
 
 // localStorage (browser only)
 const or = new OpenRouterAuto({
-  apiKey: '...',
-  storageType: 'localStorage',
+  apiKey: "...",
+  storageType: "localStorage",
 });
 
 // Config file (Node.js/Python)
 const or = new OpenRouterAuto({
-  apiKey: '...',
-  storageType: 'file',
-  configPath: './.openrouter-auto.json',
+  apiKey: "...",
+  storageType: "file",
+  configPath: "./.openrouter-auto.json",
 });
 ```
 
@@ -608,9 +620,9 @@ async def main():
         "api_key": "your-api-key",
         "storage_type": "file",
     })
-    
+
     await or_auto.initialize()
-    
+
     # Stream responses
     async for chunk in or_auto.stream_chat({
         "model": "anthropic/claude-3.5-sonnet",
@@ -627,17 +639,17 @@ asyncio.run(main())
 
 ```typescript
 interface OpenRouterAutoOptions {
-  apiKey: string;                    // Required: OpenRouter API key
-  baseUrl?: string;                  // Default: 'https://openrouter.ai/api/v1'
-  storageType?: 'memory' | 'localStorage' | 'file';
-  configPath?: string;               // For file storage
-  autoFetch?: boolean;               // Auto-fetch models on init
-  fetchInterval?: number;            // Auto-fetch interval (ms)
-  cacheDuration?: number;            // Cache duration (ms)
-  enableTesting?: boolean;           // Test models on add
-  testPrompt?: string;               // Test prompt to use
-  onError?: (error) => void;         // Global error handler
-  onEvent?: (event) => void;         // Global event handler
+  apiKey: string; // Required: OpenRouter API key
+  baseUrl?: string; // Default: 'https://openrouter.ai/api/v1'
+  storageType?: "memory" | "localStorage" | "file";
+  configPath?: string; // For file storage
+  autoFetch?: boolean; // Auto-fetch models on init
+  fetchInterval?: number; // Auto-fetch interval (ms)
+  cacheDuration?: number; // Cache duration (ms)
+  enableTesting?: boolean; // Test models on add
+  testPrompt?: string; // Test prompt to use
+  onError?: (error) => void; // Global error handler
+  onEvent?: (event) => void; // Global event handler
 }
 ```
 
