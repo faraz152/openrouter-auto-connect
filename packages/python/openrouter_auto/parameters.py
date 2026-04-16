@@ -164,6 +164,22 @@ def validate_parameter(
     return True, None
 
 
+# OpenRouter platform-level parameters that are always allowed regardless
+# of the model's supported_parameters list.
+PLATFORM_PARAMS = frozenset({
+    "model", "messages", "stream", "stream_options",
+    "tools", "tool_choice", "parallel_tool_calls",
+    "reasoning", "include",
+    "response_format",
+    "provider", "models", "route",
+    "plugins",
+    "metadata", "trace", "session_id", "user",
+    "modalities",
+    "logprobs", "top_logprobs",
+    "cache_control", "service_tier",
+})
+
+
 def validate_parameters(
     model: OpenRouterModel,
     params: Dict[str, Any]
@@ -172,9 +188,9 @@ def validate_parameters(
     errors: Dict[str, str] = {}
     supported = model.supported_parameters or []
     
-    # Check for unsupported parameters
+    # Check for unsupported parameters (skip platform-level params)
     for key in params.keys():
-        if key not in supported and key not in ["model", "messages"]:
+        if key not in supported and key not in PLATFORM_PARAMS:
             errors[key] = f"Parameter '{key}' is not supported by this model"
     
     # Validate supported parameters

@@ -189,6 +189,23 @@ export function validateParameter(
 /**
  * Validate all parameters for a model
  */
+/**
+ * OpenRouter platform-level parameters that are always allowed
+ * regardless of the model's supported_parameters list.
+ */
+const PLATFORM_PARAMS = new Set([
+  'model', 'messages', 'stream', 'stream_options',
+  'tools', 'tool_choice', 'parallel_tool_calls',
+  'reasoning', 'include',
+  'response_format',
+  'provider', 'models', 'route',
+  'plugins',
+  'metadata', 'trace', 'session_id', 'user',
+  'modalities',
+  'logprobs', 'top_logprobs',
+  'cache_control', 'service_tier',
+]);
+
 export function validateParameters(
   model: OpenRouterModel,
   params: Record<string, any>
@@ -196,9 +213,9 @@ export function validateParameters(
   const errors: Record<string, string> = {};
   const supported = model.supported_parameters || [];
 
-  // Check for unsupported parameters
+  // Check for unsupported parameters (skip platform-level params)
   for (const key of Object.keys(params)) {
-    if (!supported.includes(key) && !['model', 'messages'].includes(key)) {
+    if (!supported.includes(key) && !PLATFORM_PARAMS.has(key)) {
       errors[key] = `Parameter '${key}' is not supported by this model`;
     }
   }
