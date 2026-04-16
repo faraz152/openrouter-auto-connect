@@ -163,12 +163,20 @@ export function ErrorDisplay({
             <strong>Tip:</strong> {tip}
           </div>
 
-          {showCode && displayError.details && (
-            <code style={styles.code}>
-              {JSON.stringify(displayError.details, null, 2).slice(0, 200)}
-              {JSON.stringify(displayError.details).length > 200 ? '...' : ''}
-            </code>
-          )}
+          {showCode && displayError.details && (() => {
+            // Strip any fields that could leak sensitive data (auth headers, request config)
+            const raw = displayError.details;
+            const safe = (typeof raw === 'object' && raw !== null)
+              ? (() => { const { config, request, headers, Authorization, ...rest } = raw; return rest; })()
+              : raw;
+            const json = JSON.stringify(safe, null, 2);
+            return (
+              <code style={styles.code}>
+                {json.slice(0, 200)}
+                {json.length > 200 ? '...' : ''}
+              </code>
+            );
+          })()}
 
           <div style={styles.actions}>
             {canRetry && onRetry && (

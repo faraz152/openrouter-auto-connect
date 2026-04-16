@@ -41,6 +41,17 @@ from .cost import calculate_cost, estimate_tokens, get_price_tier, get_best_free
 # Default test prompt
 DEFAULT_TEST_PROMPT = 'Say "Hello! This is a test message." and nothing else.'
 
+
+class _BearerAuth(httpx.Auth):
+    """Per-request auth — keeps the API key out of client.headers."""
+    def __init__(self, token: str):
+        self._token = token
+
+    def auth_flow(self, request):
+        request.headers["Authorization"] = f"Bearer {self._token}"
+        yield request
+
+
 # Default options
 DEFAULT_OPTIONS = {
     "base_url": "https://openrouter.ai/api/v1",
@@ -59,7 +70,12 @@ class OpenRouterAuto:
     def __init__(self, options: Dict[str, Any]):
         """Initialize the SDK"""
         self.options = {**DEFAULT_OPTIONS, **options}
-        self.api_key = self.options["api_key"]
+        self._api_key = self.options["api_key"]
+
+        # Validate base_url scheme to prevent SSRF
+        base_url = self.options["base_url"]
+        if not base_url.startswith(("https://", "http://")):
+            raise ValueError(f"Unsupported base_url scheme: {base_url}. Only https:// and http:// are allowed.")
 
         # Initialize storage
         storage_type = self.options.get("storage_type", "memory")
@@ -73,17 +89,15 @@ class OpenRouterAuto:
         site_name = self.options.get("site_name", "openrouter-auto-connect")
 
         self.client = httpx.AsyncClient(
-            base_url=self.options["base_url"],
+            base_url=base_url,
             headers={
                 "Content-Type": "application/json",
-                "Authorization": f"Bearer {self.api_key}",
                 "HTTP-Referer": site_url,
                 "X-Title": site_name,
             },
+            auth=_BearerAuth(self._api_key),
             timeout=60.0,
         )
-        # Inject auth header per-request to avoid leaking the key in client defaults
-        self.client.headers["Authorization"] = f"Bearer {self.api_key}"
 
         # State
         self.models: List[OpenRouterModel] = []

@@ -59,7 +59,15 @@ class FileStorage(StorageAdapter):
     """File-based storage adapter"""
 
     def __init__(self, config_path: str = "./.openrouter-auto.json"):
-        self.config_path = Path(config_path)
+        resolved = Path(config_path).resolve()
+        # Guard against path traversal — config must live under CWD or user home
+        allowed_roots = [Path.cwd().resolve(), Path.home().resolve()]
+        if not any(str(resolved).startswith(str(root)) for root in allowed_roots):
+            raise ValueError(
+                f"configPath '{config_path}' resolves outside CWD and HOME. "
+                "This is not allowed to prevent path traversal."
+            )
+        self.config_path = resolved
         self._data: Dict[str, Any] = {}
         self._load()
 
@@ -171,8 +179,14 @@ async def get_user_preferences(storage: StorageAdapter) -> Optional[Any]:
 
 
 async def set_user_preferences(storage: StorageAdapter, preferences: Any) -> None:
-    """Set user preferences"""
-    await storage.set(STORAGE_KEYS["USER_PREFERENCES"], preferences)
+    """Set user preferences — strips api_key before persisting."""
+    safe = preferences
+    if hasattr(preferences, '__dict__'):
+        safe_dict = {k: v for k, v in preferences.__dict__.items() if k not in ("api_key", "apiKey")}
+        safe = safe_dict
+    elif isinstance(preferences, dict):
+        safe = {k: v for k, v in preferences.items() if k not in ("api_key", "apiKey")}
+    await storage.set(STORAGE_KEYS["USER_PREFERENCES"], safe)
 
 
 async def get_last_fetch_time(storage: StorageAdapter) -> Optional[int]:

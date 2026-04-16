@@ -3,8 +3,8 @@
  * Comprehensive error handling for OpenRouter API
  */
 
-import { OpenRouterError, OpenRouterErrorCode } from "./types";
 import errorsRegistry from "../../registry/errors.json";
+import { OpenRouterError, OpenRouterErrorCode } from "./types";
 
 // Error code mapping from OpenRouter API responses
 const ERROR_CODE_MAP: Record<string, OpenRouterErrorCode> =
@@ -17,6 +17,16 @@ const ERROR_MESSAGES: Record<OpenRouterErrorCode, string> =
 // Retryable error codes
 const RETRYABLE_ERRORS: OpenRouterErrorCode[] =
   errorsRegistry.retryable as OpenRouterErrorCode[];
+
+/**
+ * Sanitize error details — strip request config/headers that may contain the API key.
+ */
+function sanitizeDetails(raw: any): any {
+  if (!raw || typeof raw !== "object") return raw;
+  // Axios errors carry config.headers.Authorization — never store those
+  const { config, request, headers, ...safe } = raw;
+  return safe;
+}
 
 /**
  * Parse error from OpenRouter API response
@@ -64,7 +74,7 @@ export function parseOpenRouterError(error: any): OpenRouterError {
       code,
       message:
         ERROR_MESSAGES[code] + (code === "UNKNOWN" ? ` (${message})` : ""),
-      details: errorData,
+      details: sanitizeDetails(errorData),
       retryable: RETRYABLE_ERRORS.includes(code),
     };
   }
@@ -75,7 +85,7 @@ export function parseOpenRouterError(error: any): OpenRouterError {
     return {
       code,
       message: ERROR_MESSAGES[code],
-      details: error,
+      details: { code: error.code, message: error.message },
       retryable: RETRYABLE_ERRORS.includes(code),
     };
   }
@@ -85,7 +95,7 @@ export function parseOpenRouterError(error: any): OpenRouterError {
     return {
       code: "TIMEOUT",
       message: ERROR_MESSAGES.TIMEOUT,
-      details: error,
+      details: { message: error.message },
       retryable: true,
     };
   }
@@ -94,7 +104,7 @@ export function parseOpenRouterError(error: any): OpenRouterError {
   return {
     code: "UNKNOWN",
     message: ERROR_MESSAGES.UNKNOWN + ` (${error.message || "No details"})`,
-    details: error,
+    details: { message: error.message },
     retryable: false,
   };
 }
@@ -177,7 +187,7 @@ export function createErrorFromResponse(
   return {
     code,
     message,
-    details: body,
+    details: sanitizeDetails(body),
     retryable: RETRYABLE_ERRORS.includes(code),
   };
 }

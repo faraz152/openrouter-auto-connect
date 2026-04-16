@@ -107,7 +107,7 @@ def parse_openrouter_error(error: Exception, response: Optional[Any] = None) -> 
         return OpenRouterError(
             code=OpenRouterErrorCode.NETWORK_ERROR,
             message=ERROR_MESSAGES[OpenRouterErrorCode.NETWORK_ERROR],
-            details=str(error),
+            details={"error_type": type(error).__name__},
             retryable=True,
         )
 
@@ -116,15 +116,15 @@ def parse_openrouter_error(error: Exception, response: Optional[Any] = None) -> 
         return OpenRouterError(
             code=OpenRouterErrorCode.TIMEOUT,
             message=ERROR_MESSAGES[OpenRouterErrorCode.TIMEOUT],
-            details=str(error),
+            details={"error_type": type(error).__name__},
             retryable=True,
         )
 
     # Unknown error
     return OpenRouterError(
         code=OpenRouterErrorCode.UNKNOWN,
-        message=ERROR_MESSAGES[OpenRouterErrorCode.UNKNOWN] + f" ({str(error)})",
-        details=str(error),
+        message=ERROR_MESSAGES[OpenRouterErrorCode.UNKNOWN] + f" ({type(error).__name__})",
+        details={"error_type": type(error).__name__},
         retryable=False,
     )
 

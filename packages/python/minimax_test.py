@@ -50,7 +50,7 @@ async def run() -> None:
         err("Run:  export OPENROUTER_API_KEY=sk-or-your-key-here")
         sys.exit(1)
 
-    print(f"\n  MiniMax Model Test  |  key: {api_key[:8]}{'*' * (len(api_key) - 8)}")
+    print(f"\n  MiniMax Model Test  |  key: {'*' * (len(api_key) - 4)}{api_key[-4:]}")
 
     # ── 1. Initialise SDK ─────────────────────────────────────
     section("STEP 1 — Initialise SDK")

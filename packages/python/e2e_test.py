@@ -46,7 +46,7 @@ async def run_e2e() -> None:
         sys.exit(1)
 
     print(f"\n  OpenRouter Auto — E2E Test")
-    print(f"  API key: {api_key[:8]}{'*' * (len(api_key) - 8)}")
+    print(f"  API key: {'*' * (len(api_key) - 4)}{api_key[-4:]}")
 
     # ── 1. Initialise SDK ─────────────────────────────────────
     section("1 / 7  Initialise SDK")

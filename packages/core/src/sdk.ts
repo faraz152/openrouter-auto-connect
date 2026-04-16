@@ -77,6 +77,15 @@ export class OpenRouterAuto {
   constructor(options: OpenRouterAutoOptions) {
     this.options = { ...DEFAULT_OPTIONS, ...options };
 
+    // Validate baseUrl scheme to prevent SSRF
+    const baseUrl = this.options.baseUrl || "https://openrouter.ai/api/v1";
+    const parsedUrl = new URL(baseUrl);
+    if (!["https:", "http:"].includes(parsedUrl.protocol)) {
+      throw new Error(
+        `Unsupported baseUrl scheme: ${parsedUrl.protocol}. Only https:// and http:// are allowed.`,
+      );
+    }
+
     // Initialize storage
     this.storage =
       this.options.storage ||

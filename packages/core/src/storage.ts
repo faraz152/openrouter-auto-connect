@@ -109,16 +109,26 @@ class FileStorageAdapter implements StorageAdapter {
   private path: any;
 
   constructor(configPath: string = "./.openrouter-auto.json") {
-    this.configPath = configPath;
-
-    // Dynamic import for Node.js modules
+    // Guard against path traversal — resolve and check against CWD and HOME
     try {
-      this.fs = require("fs");
       this.path = require("path");
-      this.loadFromFile();
-    } catch (error) {
+      this.fs = require("fs");
+      const resolved = this.path.resolve(configPath);
+      const cwd = process.cwd();
+      const home = require("os").homedir();
+      if (!resolved.startsWith(cwd) && !resolved.startsWith(home)) {
+        throw new Error(
+          `configPath '${configPath}' resolves outside CWD and HOME. ` +
+            "This is not allowed to prevent path traversal.",
+        );
+      }
+      this.configPath = resolved;
+    } catch (error: any) {
+      if (error.message?.includes("path traversal")) throw error;
       console.warn("File storage not available in browser environment");
+      this.configPath = configPath;
     }
+    this.loadFromFile();
   }
 
   private loadFromFile(): void {
