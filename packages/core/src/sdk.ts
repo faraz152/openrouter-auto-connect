@@ -24,9 +24,9 @@ import {
   STORAGE_KEYS,
 } from "./storage";
 import {
+  ChatMessage,
   ChatRequest,
   ChatResponse,
-  ChatMessage,
   CostEstimate,
   EventHandler,
   ModelConfig,
@@ -92,6 +92,11 @@ export class OpenRouterAuto {
     // Inject auth header per-request to avoid leaking the key in defaults
     this.axios.interceptors.request.use((config) => {
       config.headers.Authorization = `Bearer ${this.options.apiKey}`;
+      config.headers["HTTP-Referer"] =
+        this.options.siteUrl ||
+        "https://github.com/faraz152/openrouter-auto-connect";
+      config.headers["X-Title"] =
+        this.options.siteName || "openrouter-auto-connect";
       return config;
     });
   }
@@ -491,7 +496,9 @@ export class OpenRouterAuto {
   /**
    * Stream a chat completion (returns async iterator of typed StreamChunks)
    */
-  async *streamChat(request: ChatRequest): AsyncGenerator<StreamChunk, void, unknown> {
+  async *streamChat(
+    request: ChatRequest,
+  ): AsyncGenerator<StreamChunk, void, unknown> {
     const streamRequest = { ...request, stream: true };
 
     try {
@@ -692,8 +699,10 @@ export function createOpenRouterAuto(
  *     tools: [createWebSearchTool({ max_results: 3 })],
  *   };
  */
-export function createWebSearchTool(params?: WebSearchParameters): WebSearchTool {
-  const tool: WebSearchTool = { type: 'openrouter:web_search' };
+export function createWebSearchTool(
+  params?: WebSearchParameters,
+): WebSearchTool {
+  const tool: WebSearchTool = { type: "openrouter:web_search" };
   if (params) {
     tool.parameters = params;
   }
@@ -740,7 +749,10 @@ export class StreamAccumulator {
   private usage: ChatResponse["usage"];
 
   /** Partial tool_calls indexed by position. */
-  private toolCallPartials: Map<number, { id: string; type: string; name: string; arguments: string }> = new Map();
+  private toolCallPartials: Map<
+    number,
+    { id: string; type: string; name: string; arguments: string }
+  > = new Map();
 
   /**
    * Push a raw streaming chunk into the accumulator.
@@ -803,7 +815,9 @@ export class StreamAccumulator {
    */
   getToolCalls(): ToolCall[] {
     const calls: ToolCall[] = [];
-    const sorted = [...this.toolCallPartials.entries()].sort((a, b) => a[0] - b[0]);
+    const sorted = [...this.toolCallPartials.entries()].sort(
+      (a, b) => a[0] - b[0],
+    );
     for (const [, p] of sorted) {
       calls.push({
         id: p.id,

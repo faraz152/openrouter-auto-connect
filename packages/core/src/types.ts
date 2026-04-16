@@ -50,7 +50,7 @@ export interface OpenRouterModel {
 // Parameter Definition
 export interface ParameterDefinition {
   name: string;
-  type: 'number' | 'integer' | 'string' | 'boolean' | 'array';
+  type: "number" | "integer" | "string" | "boolean" | "array";
   description: string;
   default?: any;
   min?: number;
@@ -64,7 +64,7 @@ export interface ModelConfig {
   modelId: string;
   parameters: Record<string, any>;
   enabled: boolean;
-  testStatus?: 'pending' | 'success' | 'failed';
+  testStatus?: "pending" | "success" | "failed";
   testError?: string;
   lastTested?: Date;
   addedAt: Date;
@@ -81,7 +81,7 @@ export interface UserPreferences {
 }
 
 // Storage Types
-export type StorageType = 'memory' | 'localStorage' | 'file' | 'custom';
+export type StorageType = "memory" | "localStorage" | "file" | "custom";
 
 // Storage Interface
 export interface StorageAdapter {
@@ -102,14 +102,14 @@ export interface FunctionDefinition {
 
 // Tool definition passed in the request
 export interface ToolDefinition {
-  type: 'function';
+  type: "function";
   function: FunctionDefinition;
 }
 
 // Tool call returned by the model
 export interface ToolCall {
   id: string;
-  type: 'function';
+  type: "function";
   function: {
     name: string;
     arguments: string;
@@ -120,7 +120,7 @@ export interface ToolCall {
 
 // Reasoning configuration for the request
 export interface ReasoningConfig {
-  effort?: 'low' | 'medium' | 'high';
+  effort?: "low" | "medium" | "high";
   max_tokens?: number;
 }
 
@@ -136,30 +136,33 @@ export interface ReasoningDetail {
 
 // Text content part (for multimodal messages)
 export interface TextContentPart {
-  type: 'text';
+  type: "text";
   text: string;
 }
 
 // Image URL content part
 export interface ImageUrlContentPart {
-  type: 'image_url';
+  type: "image_url";
   image_url: {
     url: string;
-    detail?: 'auto' | 'low' | 'high';
+    detail?: "auto" | "low" | "high";
   };
 }
 
 // Input audio content part
 export interface InputAudioContentPart {
-  type: 'input_audio';
+  type: "input_audio";
   input_audio: {
     data: string;
-    format: 'wav' | 'mp3';
+    format: "wav" | "mp3";
   };
 }
 
 // Union of content parts
-export type ContentPart = TextContentPart | ImageUrlContentPart | InputAudioContentPart;
+export type ContentPart =
+  | TextContentPart
+  | ImageUrlContentPart
+  | InputAudioContentPart;
 
 // ==================== Annotation Types ====================
 
@@ -174,13 +177,13 @@ export interface UrlCitation {
 
 // Annotation on a response message
 export interface Annotation {
-  type: 'url_citation';
+  type: "url_citation";
   url_citation: UrlCitation;
 }
 
 // Chat Message
 export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant' | 'tool';
+  role: "system" | "user" | "assistant" | "tool";
   content: string | ContentPart[] | null;
   name?: string;
   // Tool calling
@@ -199,7 +202,7 @@ export interface ChatMessage {
 
 // User location for web search
 export interface WebSearchUserLocation {
-  type: 'approximate';
+  type: "approximate";
   city?: string;
   region?: string;
   country?: string;
@@ -208,10 +211,10 @@ export interface WebSearchUserLocation {
 
 // Web search tool parameters
 export interface WebSearchParameters {
-  engine?: 'auto' | 'native' | 'exa' | 'firecrawl' | 'parallel';
+  engine?: "auto" | "native" | "exa" | "firecrawl" | "parallel";
   max_results?: number;
   max_total_results?: number;
-  search_context_size?: 'low' | 'medium' | 'high';
+  search_context_size?: "low" | "medium" | "high";
   allowed_domains?: string[];
   excluded_domains?: string[];
   user_location?: WebSearchUserLocation;
@@ -219,7 +222,7 @@ export interface WebSearchParameters {
 
 // Web search server tool (passed in tools array)
 export interface WebSearchTool {
-  type: 'openrouter:web_search';
+  type: "openrouter:web_search";
   parameters?: WebSearchParameters;
 }
 
@@ -229,8 +232,8 @@ export interface ProviderPreferences {
   order?: string[];
   allow_fallbacks?: boolean;
   require_parameters?: boolean;
-  data_collection?: 'deny' | 'allow';
-  sort?: 'price' | 'throughput' | 'latency';
+  data_collection?: "deny" | "allow";
+  sort?: "price" | "throughput" | "latency";
   quantizations?: string[];
   ignore?: string[];
 }
@@ -245,7 +248,7 @@ export interface StreamOptions {
 // A single streaming chunk from the server
 export interface StreamChunk {
   id: string;
-  object: 'chat.completion.chunk';
+  object: "chat.completion.chunk";
   created: number;
   model: string;
   choices: {
@@ -270,7 +273,7 @@ export interface StreamChunk {
 // ==================== Plugin Types (legacy) ====================
 
 export interface WebPlugin {
-  id: 'web';
+  id: "web";
   engine?: string;
   max_results?: number;
   search_prompt?: string;
@@ -298,7 +301,10 @@ export interface ChatRequest {
   stream_options?: StreamOptions;
   // Tool calling
   tools?: (ToolDefinition | WebSearchTool | Record<string, any>)[];
-  tool_choice?: 'auto' | 'none' | { type: 'function'; function: { name: string } };
+  tool_choice?:
+    | "auto"
+    | "none"
+    | { type: "function"; function: { name: string } };
   parallel_tool_calls?: boolean;
   // Reasoning
   reasoning?: ReasoningConfig;
@@ -308,7 +314,7 @@ export interface ChatRequest {
   // Provider routing
   provider?: ProviderPreferences;
   models?: string[];
-  route?: 'fallback';
+  route?: "fallback";
   // Plugins (legacy — prefer server tools)
   plugins?: (WebPlugin | Record<string, any>)[];
   // Observability / metadata
@@ -317,12 +323,12 @@ export interface ChatRequest {
   session_id?: string;
   user?: string;
   // Output modalities
-  modalities?: ('text' | 'image' | 'audio')[];
+  modalities?: ("text" | "image" | "audio")[];
   // Misc advanced
   logprobs?: boolean;
   top_logprobs?: number;
   cache_control?: Record<string, any>;
-  service_tier?: 'auto' | 'default' | 'flex' | 'priority' | 'scale';
+  service_tier?: "auto" | "default" | "flex" | "priority" | "scale";
   // Catch-all for forward compatibility
   [key: string]: any;
 }
@@ -363,16 +369,16 @@ export interface ModelTestResult {
 }
 
 // Error Types
-export type OpenRouterErrorCode = 
-  | 'INVALID_API_KEY'
-  | 'RATE_LIMITED'
-  | 'MODEL_NOT_FOUND'
-  | 'INVALID_PARAMETERS'
-  | 'INSUFFICIENT_CREDITS'
-  | 'PROVIDER_ERROR'
-  | 'NETWORK_ERROR'
-  | 'TIMEOUT'
-  | 'UNKNOWN';
+export type OpenRouterErrorCode =
+  | "INVALID_API_KEY"
+  | "RATE_LIMITED"
+  | "MODEL_NOT_FOUND"
+  | "INVALID_PARAMETERS"
+  | "INSUFFICIENT_CREDITS"
+  | "PROVIDER_ERROR"
+  | "NETWORK_ERROR"
+  | "TIMEOUT"
+  | "UNKNOWN";
 
 export interface OpenRouterError {
   code: OpenRouterErrorCode;
@@ -406,13 +412,13 @@ export interface CostEstimate {
 }
 
 // Event Types
-export type OpenRouterEventType = 
-  | 'models:updated'
-  | 'model:added'
-  | 'model:removed'
-  | 'model:tested'
-  | 'config:changed'
-  | 'error';
+export type OpenRouterEventType =
+  | "models:updated"
+  | "model:added"
+  | "model:removed"
+  | "model:tested"
+  | "config:changed"
+  | "error";
 
 export interface OpenRouterEvent {
   type: OpenRouterEventType;
@@ -427,6 +433,10 @@ export type EventHandler = (event: OpenRouterEvent) => void;
 export interface OpenRouterAutoOptions {
   apiKey: string;
   baseUrl?: string;
+  /** Shown in OpenRouter dashboard as the requesting app URL (HTTP-Referer header) */
+  siteUrl?: string;
+  /** Shown in OpenRouter dashboard as the requesting app name (X-Title header) */
+  siteName?: string;
   storage?: StorageAdapter;
   storageType?: StorageType;
   configPath?: string;

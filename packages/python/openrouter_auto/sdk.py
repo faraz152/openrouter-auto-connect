@@ -67,10 +67,18 @@ class OpenRouterAuto:
         self.storage = self.options.get("storage") or create_storage(storage_type, config_path)
 
         # Initialize HTTP client
+        site_url = self.options.get(
+            "site_url", "https://github.com/faraz152/openrouter-auto-connect"
+        )
+        site_name = self.options.get("site_name", "openrouter-auto-connect")
+
         self.client = httpx.AsyncClient(
             base_url=self.options["base_url"],
             headers={
                 "Content-Type": "application/json",
+                "Authorization": f"Bearer {self.api_key}",
+                "HTTP-Referer": site_url,
+                "X-Title": site_name,
             },
             timeout=60.0,
         )

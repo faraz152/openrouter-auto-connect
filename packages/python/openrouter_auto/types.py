@@ -253,7 +253,7 @@ class ChatRequest:
             "model": self.model,
             "messages": [m.to_dict() for m in self.messages],
         }
-        
+
         # Add optional parameters
         optional_params = [
             "temperature", "top_p", "top_k", "max_tokens",
@@ -269,16 +269,16 @@ class ChatRequest:
             "modalities",
             "logprobs", "top_logprobs", "cache_control", "service_tier",
         ]
-        
+
         for param in optional_params:
             value = getattr(self, param, None)
             if value is not None:
                 result[param] = value
-        
+
         # Merge extra dict for forward compatibility
         if self.extra:
             result.update(self.extra)
-        
+
         return result
 
 
@@ -369,6 +369,9 @@ class OpenRouterAutoOptions:
     """SDK initialisation options"""
     api_key: str
     base_url: str = "https://openrouter.ai/api/v1"
+    # Shown in OpenRouter dashboard (HTTP-Referer and X-Title headers)
+    site_url: str = "https://github.com/faraz152/openrouter-auto-connect"
+    site_name: str = "openrouter-auto-connect"
     storage_type: str = "memory"
     config_path: Optional[str] = None
     auto_fetch: bool = True
