@@ -28,6 +28,7 @@ const ERROR_MESSAGES: Record<OpenRouterErrorCode, string> = {
   INVALID_API_KEY: 'Invalid or missing API key. Please check your OpenRouter API key.',
   RATE_LIMITED: 'Rate limit exceeded. Please wait before making more requests.',
   MODEL_NOT_FOUND: 'Model not found. The model may have been removed or renamed.',
+  MODEL_UNAVAILABLE: 'Model is currently unavailable. This is common with free models. Try a different model.',
   INVALID_PARAMETERS: 'Invalid parameters provided. Please check your request parameters.',
   INSUFFICIENT_CREDITS: 'Insufficient credits. Please add more credits to your OpenRouter account.',
   PROVIDER_ERROR: 'The model provider encountered an error. Please try again or use a different model.',
@@ -137,6 +138,8 @@ export function formatErrorForDisplay(error: OpenRouterError): string {
     display += '\n💡 Tip: Visit https://openrouter.ai/credits to add more credits.';
   } else if (error.code === 'MODEL_NOT_FOUND') {
     display += '\n💡 Tip: Try refreshing the model list to get the latest models.';
+  } else if (error.code === 'MODEL_UNAVAILABLE') {
+    display += '\n💡 Tip: Free models are often intermittently unavailable. Use or.getBestFreeModel() to find a working one, or pass { skipTest: true } to addModel() to bypass the check.';
   } else if (error.code === 'PROVIDER_ERROR') {
     display += '\n💡 Tip: This model may be temporarily unavailable. Try another model.';
   } else if (error.code === 'INVALID_PARAMETERS') {

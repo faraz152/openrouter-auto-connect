@@ -25,6 +25,7 @@ ERROR_MESSAGES: Dict[OpenRouterErrorCode, str] = {
     OpenRouterErrorCode.INVALID_API_KEY: "Invalid or missing API key. Please check your OpenRouter API key.",
     OpenRouterErrorCode.RATE_LIMITED: "Rate limit exceeded. Please wait before making more requests.",
     OpenRouterErrorCode.MODEL_NOT_FOUND: "Model not found. The model may have been removed or renamed.",
+    OpenRouterErrorCode.MODEL_UNAVAILABLE: "Model is currently unavailable. This is common with free models. Try a different model.",
     OpenRouterErrorCode.INVALID_PARAMETERS: "Invalid parameters provided. Please check your request parameters.",
     OpenRouterErrorCode.INSUFFICIENT_CREDITS: "Insufficient credits. Please add more credits to your OpenRouter account.",
     OpenRouterErrorCode.PROVIDER_ERROR: "The model provider encountered an error. Please try again or use a different model.",
@@ -155,6 +156,7 @@ def format_error_for_display(error: OpenRouterError) -> str:
         OpenRouterErrorCode.RATE_LIMITED: "💡 Tip: Wait a few seconds before retrying.",
         OpenRouterErrorCode.INSUFFICIENT_CREDITS: "💡 Tip: Visit https://openrouter.ai/credits to add more credits.",
         OpenRouterErrorCode.MODEL_NOT_FOUND: "💡 Tip: Try refreshing the model list to get the latest models.",
+        OpenRouterErrorCode.MODEL_UNAVAILABLE: "💡 Tip: Free models are often intermittently unavailable. Use sdk.get_best_free_model() to find a working one, or pass skip_test=True to add_model() to bypass the check.",
         OpenRouterErrorCode.PROVIDER_ERROR: "💡 Tip: This model may be temporarily unavailable. Try another model.",
         OpenRouterErrorCode.INVALID_PARAMETERS: "💡 Tip: Check that your parameters are within the model's supported range.",
     }

@@ -4,7 +4,12 @@
  */
 
 import axios, { AxiosInstance } from "axios";
-import { calculateCost, estimateTokens, getPriceTier, getBestFreeModel } from "./cost";
+import {
+  calculateCost,
+  estimateTokens,
+  getBestFreeModel,
+  getPriceTier,
+} from "./cost";
 import { OpenRouterAutoError, parseOpenRouterError } from "./errors";
 import {
   getModelParameters,
@@ -284,10 +289,14 @@ export class OpenRouterAuto {
 
   /**
    * Add and configure a model
+   * @param skipTest — pass true to add the model without running an availability test.
+   *   By default, addModel() throws MODEL_UNAVAILABLE if the test fails.
+   *   This is especially important for free models, which are often intermittently broken.
    */
   async addModel(
     modelId: string,
     parameters: Record<string, any> = {},
+    { skipTest = false }: { skipTest?: boolean } = {},
   ): Promise<ModelConfig> {
     const model = this.getModel(modelId);
     if (!model) {
@@ -319,12 +328,21 @@ export class OpenRouterAuto {
       addedAt: new Date(),
     };
 
-    // Test the model if enabled
-    if (this.options.enableTesting) {
+    // Test the model if enabled (throws MODEL_UNAVAILABLE if the test fails)
+    if (this.options.enableTesting && !skipTest) {
       const testResult = await this.testModel(modelId, config.parameters);
       config.testStatus = testResult.success ? "success" : "failed";
       config.testError = testResult.error;
       config.lastTested = new Date();
+
+      if (!testResult.success) {
+        throw new OpenRouterAutoError({
+          code: "MODEL_UNAVAILABLE",
+          message: `Model '${modelId}' is currently unavailable: ${testResult.error ?? "test failed"}. This is common with free models. Pass { skipTest: true } to addModel() to bypass this check.`,
+          details: { modelId, testError: testResult.error },
+          retryable: true,
+        });
+      }
     }
 
     // Save config
@@ -465,6 +483,22 @@ export class OpenRouterAuto {
   }
 
   // ==================== Chat/Completion ====================
+
+  /**
+   * Quick availability probe for a model — runs a minimal test without adding it.
+   * Returns { available, error, responseTime }.
+   * Useful for checking free models before committing to addModel().
+   */
+  async checkModelAvailability(
+    modelId: string,
+  ): Promise<{ available: boolean; error?: string; responseTime: number }> {
+    const result = await this.testModel(modelId);
+    return {
+      available: result.success,
+      error: result.error,
+      responseTime: result.responseTime,
+    };
+  }
 
   /**
    * Send a chat completion request

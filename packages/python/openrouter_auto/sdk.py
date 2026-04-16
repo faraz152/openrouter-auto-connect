@@ -240,9 +240,18 @@ class OpenRouterAuto:
     async def add_model(
         self,
         model_id: str,
-        parameters: Dict[str, Any] = None
+        parameters: Dict[str, Any] = None,
+        skip_test: bool = False,
     ) -> ModelConfig:
-        """Add and configure a model"""
+        """Add and configure a model.
+
+        Args:
+            model_id: The model to add.
+            parameters: Optional parameter overrides.
+            skip_test: If True, skip the availability test. By default, add_model()
+                raises MODEL_UNAVAILABLE when the test fails. Pass skip_test=True to
+                bypass this — useful for paid models or when you know the model works.
+        """
         parameters = parameters or {}
 
         model = self.get_model(model_id)
@@ -271,12 +280,25 @@ class OpenRouterAuto:
             enabled=True,
         )
 
-        # Test the model if enabled
-        if self.options.get("enable_testing", True):
+        # Test the model if enabled (raises MODEL_UNAVAILABLE if the test fails)
+        if self.options.get("enable_testing", True) and not skip_test:
             result = await self.test_model(model_id, config.parameters)
             config.test_status = "success" if result.success else "failed"
             config.test_error = result.error
             config.last_tested = result.timestamp
+
+            if not result.success:
+                raise OpenRouterAutoError(OpenRouterError(
+                    code="MODEL_UNAVAILABLE",
+                    message=(
+                        f"Model '{model_id}' is currently unavailable: "
+                        f"{result.error or 'test failed'}. "
+                        "This is common with free models. "
+                        "Pass skip_test=True to add_model() to bypass this check."
+                    ),
+                    details={"model_id": model_id, "test_error": result.error},
+                    retryable=True,
+                ))
 
         # Save config
         self.model_configs[model_id] = config
@@ -397,6 +419,20 @@ class OpenRouterAuto:
         return results
 
     # ==================== Chat/Completion ====================
+
+    async def check_model_availability(
+        self, model_id: str
+    ) -> Dict[str, Any]:
+        """Quick availability probe for a model — runs a minimal test without adding it.
+        Returns { 'available': bool, 'error': str|None, 'response_time': float }.
+        Useful for checking free models before committing to add_model().
+        """
+        result = await self.test_model(model_id)
+        return {
+            "available": result.success,
+            "error": result.error,
+            "response_time": result.response_time,
+        }
 
     async def chat(self, request: ChatRequest) -> ChatResponse:
         """Send a chat completion request"""
