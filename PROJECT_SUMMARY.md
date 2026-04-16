@@ -6,13 +6,14 @@
 
 ### Problem Solved
 
-| Before OpenRouter Auto | With OpenRouter Auto |
-|------------------------|----------------------|
-| Hardcode model IDs | Auto-fetch all 300+ models |
-| Manual parameter config | Dynamic forms from API |
-| No model validation | Built-in testing before use |
-| Static pricing info | Real-time cost estimation |
-| Framework-specific | Works with any stack |
+| Before OpenRouter Auto  | With OpenRouter Auto                            |
+| ----------------------- | ----------------------------------------------- |
+| Hardcode model IDs      | Auto-fetch all 345+ models                      |
+| Manual parameter config | Dynamic forms from API                          |
+| No model validation     | Built-in testing before use                     |
+| Static pricing info     | Real-time cost estimation (incl. reasoning)     |
+| Basic chat only         | Streaming, reasoning, tools, vision, web search |
+| Framework-specific      | Works with any stack                            |
 
 ## 📁 Project Structure
 
@@ -67,60 +68,100 @@ openrouter-auto/
 ## ✨ Key Features Implemented
 
 ### 1. Auto-Fetch Models
+
 - Fetches all 300+ models from OpenRouter API
 - Caches locally for performance
 - Auto-refresh on configurable interval
 - Filter by price, modality, provider, etc.
 
 ### 2. Auto-Configure Parameters
+
 - Dynamic parameter forms from `supported_parameters`
 - Automatic validation with min/max ranges
 - Default values per model
 - Type-safe parameter handling
 
 ### 3. Model Testing
+
 - Built-in test on model add
 - Configurable test prompt
 - Success/failure tracking
 - Error reporting
 
-### 4. Cost Estimation
+### 4. Streaming with StreamAccumulator
+
+- Typed streaming chunks (`StreamChunk`)
+- `StreamAccumulator` class: accumulates `content`, `reasoning`, and `tool_calls` deltas
+- Works across all three runtimes (TS, React, Python)
+- Supports `stream_options: { include_usage: true }`
+
+### 5. Reasoning Models (Phase 1)
+
+- `ReasoningConfig` type + `reasoning` field on `ChatRequest`
+- `StreamAccumulator` captures `delta.reasoning` and `delta.reasoning_content`
+- Cost calculation includes `reasoning_tokens` component
+- Tested live with MiniMax M2.7 and DeepSeek-R1
+
+### 6. Tool Calling (Phase 1)
+
+- `ToolDefinition`, `ToolCall`, `FunctionDefinition` types
+- Request: `tools`, `tool_choice`, `parallel_tool_calls` fields
+- `StreamAccumulator.getToolCalls()` reassembles incremental deltas
+- Tested live: function name + arguments correctly accumulated
+
+### 7. Web Search (Phase 2)
+
+- `createWebSearchTool(params?)` helper — returns `{ type: "openrouter:web_search" }` descriptor
+- `enableWebSearch(request, params?)` helper — returns patched request copy
+- Supports custom parameters (e.g. `max_results`)
+- `WebSearchParameters`, `WebSearchUserLocation`, `WebPlugin` types
+
+### 8. Multimodal / Vision (Phase 2)
+
+- `ContentPart` union type: `TextContentPart | ImageContentPart | InputAudioContentPart`
+- `ChatMessage.content` accepts `string | ContentPart[] | null`
+- `Annotation` and `UrlCitation` types for web-search response annotations
+
+### 9. Provider Routing + Advanced Params (Phase 3)
+
+- `ProviderPreferences` type: `order`, `allow_fallbacks`, `require_parameters`, etc.
+- `ChatRequest` fields: `provider`, `models`, `route`, `plugins`, `metadata`, `trace`, `session_id`, `user`, `modalities`, `logprobs`, `top_logprobs`, `cache_control`, `service_tier`
+- Platform-level params bypass model `supported_parameters` validation (via `PLATFORM_PARAMS` whitelist)
+
+### 10. Cost Estimation
+
 - Real-time pricing from API
 - Token estimation from text
-- Cost breakdown (prompt/completion)
+- Cost breakdown: prompt / completion / reasoning
 - Monthly estimates
 
-### 5. Error Handling
+### 11. Error Handling
+
 - Smart error code mapping
 - User-friendly messages
 - Retry suggestions
 - Helpful tips per error type
 
-### 6. Storage Options
+### 13. Storage Options
+
 - **Memory**: No persistence (default)
 - **localStorage**: Browser persistence
 - **File**: Node.js/Python config file
 
-### 7. React Components
+### 14. React Components
+
 - `ModelSelector`: Searchable dropdown
 - `ModelConfigPanel`: Parameter configuration
 - `CostEstimator`: Real-time cost calc
 - `ErrorDisplay`: Error display with tips
 
-### 8. Python SDK
-- Full async/await support
-- Streaming responses
-- CLI tool included
-- Same API as TypeScript
+### 12. Python SDK
 
-### 9. CLI Tool (Python)
-```bash
-openrouter-auto setup          # One-time setup
-openrouter-auto models         # List models
-openrouter-auto add <model>    # Add model
-openrouter-auto test <model>   # Test model
-openrouter-auto chat <model>   # Chat with model
-```
+- Full async/await support
+- Streaming responses via `stream_chat()` async generator
+- `StreamAccumulator`, `create_web_search_tool()`, `enable_web_search()` helpers
+- CLI tool: `openrouter-auto setup|models|add|test|chat`
+- 1-to-1 API parity with TypeScript core
 
 ## 🔧 Technical Implementation
 
@@ -155,9 +196,8 @@ openrouter-auto chat <model>   # Chat with model
                         ▼
 ┌─────────────────────────────────────────────────────────────┐
 │                    OPENROUTER API                           │
-│  • GET /models          (fetch all models)                  │
-│  • POST /chat/completions (unified endpoint)                │
-│  • GET /models/{id}/endpoints (provider options)            │
+│  • GET /api/v1/models              (fetch all models)       │
+│  • POST /api/v1/chat/completions   (chat + stream + tools)  │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -190,27 +230,26 @@ openrouter-auto chat <model>   # Chat with model
 
 ### Endpoints Used
 
-| Endpoint | Purpose | Auth |
-|----------|---------|------|
-| `GET /api/v1/models` | List all models | No |
-| `POST /api/v1/chat/completions` | Chat completion | Yes |
-| `GET /api/v1/models/{id}/endpoints` | Get endpoints | Yes |
+| Endpoint                        | Purpose                                    | Auth |
+| ------------------------------- | ------------------------------------------ | ---- |
+| `GET /api/v1/models`            | List all models (345+)                     | No   |
+| `POST /api/v1/chat/completions` | Chat, streaming, tools, vision, web search | Yes  |
 
 ### Model Object
 
 ```typescript
 interface OpenRouterModel {
-  id: string;                    // "anthropic/claude-3.5-sonnet"
-  name: string;                  // "Claude 3.5 Sonnet"
-  context_length: number;        // 200000
+  id: string; // "anthropic/claude-3.5-sonnet"
+  name: string; // "Claude 3.5 Sonnet"
+  context_length: number; // 200000
   pricing: {
-    prompt: string;              // "0.000003"
-    completion: string;          // "0.000015"
+    prompt: string; // "0.000003"
+    completion: string; // "0.000015"
   };
   supported_parameters: string[]; // ["temperature", "max_tokens", ...]
   architecture: {
-    modality: string;            // "text->text"
-    input_modalities: string[];  // ["text", "image"]
+    modality: string; // "text->text"
+    input_modalities: string[]; // ["text", "image"]
     output_modalities: string[]; // ["text"]
   };
   top_provider: {
@@ -226,23 +265,27 @@ interface OpenRouterModel {
 ### JavaScript/TypeScript
 
 ```typescript
-import { OpenRouterAuto } from 'openrouter-auto';
+import { OpenRouterAuto } from "openrouter-auto";
 
-const or = new OpenRouterAuto({ apiKey: '...' });
+const or = new OpenRouterAuto({ apiKey: "..." });
 await or.initialize();
 
 // Add and use model
-await or.addModel('anthropic/claude-3.5-sonnet', { temperature: 0.7 });
+await or.addModel("anthropic/claude-3.5-sonnet", { temperature: 0.7 });
 const response = await or.chat({
-  model: 'anthropic/claude-3.5-sonnet',
-  messages: [{ role: 'user', content: 'Hello!' }],
+  model: "anthropic/claude-3.5-sonnet",
+  messages: [{ role: "user", content: "Hello!" }],
 });
 ```
 
 ### React
 
 ```tsx
-import { OpenRouterProvider, ModelSelector, useOpenRouter } from 'openrouter-auto/react';
+import {
+  OpenRouterProvider,
+  ModelSelector,
+  useOpenRouter,
+} from "openrouter-auto/react";
 
 function App() {
   return (
@@ -307,22 +350,20 @@ version="1.0.0"
 
 ## 🔮 Future Enhancements
 
-1. **Vue.js Components** - Add Vue support
-2. **Svelte Components** - Add Svelte support
-3. **Model Recommendations** - AI-powered model suggestions
-4. **Usage Analytics** - Track model usage and costs
-5. **Fallback Routing** - Auto-fallback on model failure
-6. **Batch Requests** - Send multiple requests efficiently
-7. **Caching Layer** - Redis/caching for large deployments
-8. **Web Dashboard** - Standalone management UI
+1. **Responses API** — OpenRouter `/api/v1/responses` endpoint (stateful sessions)
+2. **Vue.js / Svelte Components** — Add framework wrappers
+3. **Batch Requests** — Send multiple requests efficiently
+4. **Caching Layer** — Redis / edge caching for large deployments
+5. **Web Dashboard** — Standalone management UI
 
 ## 📈 Success Metrics
 
 - **Developer Experience**: Zero config, one-line setup
-- **Model Coverage**: All 300+ OpenRouter models
-- **Error Reduction**: Smart validation and helpful errors
-- **Cost Visibility**: Real-time cost estimation
+- **Model Coverage**: All 345+ OpenRouter models (live-verified)
+- **Error Reduction**: Smart validation, PLATFORM_PARAMS whitelist, and helpful errors
+- **Cost Visibility**: Real-time cost estimation including reasoning tokens
 - **Framework Support**: JavaScript, TypeScript, React, Python
+- **Feature Coverage**: Chat, streaming, reasoning, tool calling, web search, vision, provider routing, logprobs
 
 ## 🤝 Contributing
 

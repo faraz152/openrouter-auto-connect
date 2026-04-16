@@ -105,7 +105,7 @@ def get_model_parameters(model: OpenRouterModel) -> List[ParameterDefinition]:
     """Get parameter definitions for a specific model"""
     supported = model.supported_parameters or []
     definitions: List[ParameterDefinition] = []
-    
+
     for param_name in supported:
         definition = DEFAULT_PARAMETERS.get(param_name)
         if definition:
@@ -120,7 +120,7 @@ def get_model_parameters(model: OpenRouterModel) -> List[ParameterDefinition]:
                 ))
             else:
                 definitions.append(definition)
-    
+
     return definitions
 
 
@@ -130,37 +130,37 @@ def validate_parameter(
     definition: ParameterDefinition
 ) -> Tuple[bool, Optional[str]]:
     """Validate a parameter value"""
-    
+
     if value is None:
         return True, None
-    
+
     # Check type
     if definition.type == "number" and not isinstance(value, (int, float)):
         return False, f"{name} must be a number"
-    
+
     if definition.type == "integer" and not isinstance(value, int):
         return False, f"{name} must be an integer"
-    
+
     if definition.type == "boolean" and not isinstance(value, bool):
         return False, f"{name} must be a boolean"
-    
+
     if definition.type == "string" and not isinstance(value, str):
         return False, f"{name} must be a string"
-    
+
     if definition.type == "array" and not isinstance(value, list):
         return False, f"{name} must be an array"
-    
+
     # Check range
     if definition.min is not None and value < definition.min:
         return False, f"{name} must be at least {definition.min}"
-    
+
     if definition.max is not None and value > definition.max:
         return False, f"{name} must be at most {definition.max}"
-    
+
     # Check enum
     if definition.enum and value not in definition.enum:
         return False, f"{name} must be one of: {', '.join(map(str, definition.enum))}"
-    
+
     return True, None
 
 
@@ -187,12 +187,12 @@ def validate_parameters(
     """Validate all parameters for a model"""
     errors: Dict[str, str] = {}
     supported = model.supported_parameters or []
-    
+
     # Check for unsupported parameters (skip platform-level params)
     for key in params.keys():
         if key not in supported and key not in PLATFORM_PARAMS:
             errors[key] = f"Parameter '{key}' is not supported by this model"
-    
+
     # Validate supported parameters
     definitions = get_model_parameters(model)
     for definition in definitions:
@@ -201,7 +201,7 @@ def validate_parameters(
             valid, error = validate_parameter(definition.name, value, definition)
             if not valid:
                 errors[definition.name] = error
-    
+
     return len(errors) == 0, errors
 
 
@@ -209,11 +209,11 @@ def get_default_parameters(model: OpenRouterModel) -> Dict[str, Any]:
     """Get default parameters for a model"""
     defaults: Dict[str, Any] = {}
     definitions = get_model_parameters(model)
-    
+
     for definition in definitions:
         if definition.default is not None:
             defaults[definition.name] = definition.default
-    
+
     return defaults
 
 
@@ -245,7 +245,7 @@ def is_parameter_supported(model: OpenRouterModel, param_name: str) -> bool:
 def get_parameter_constraints(definition: ParameterDefinition) -> Dict[str, Any]:
     """Get parameter constraints for UI display"""
     constraints: Dict[str, Any] = {}
-    
+
     if definition.min is not None:
         constraints["min"] = definition.min
     if definition.max is not None:
@@ -254,5 +254,5 @@ def get_parameter_constraints(definition: ParameterDefinition) -> Dict[str, Any]
         constraints["step"] = 0.1
     elif definition.type == "integer":
         constraints["step"] = 1
-    
+
     return constraints

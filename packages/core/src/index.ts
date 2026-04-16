@@ -4,64 +4,70 @@
  */
 
 // Types
-export * from './types';
+export * from "./types";
 
 // SDK
-export { OpenRouterAuto, createOpenRouterAuto, StreamAccumulator, createWebSearchTool, enableWebSearch } from './sdk';
+export {
+  createOpenRouterAuto,
+  createWebSearchTool,
+  enableWebSearch,
+  OpenRouterAuto,
+  StreamAccumulator,
+} from "./sdk";
 
 // Errors
-export { 
-  parseOpenRouterError, 
-  isRetryableError, 
-  getRetryDelay, 
+export {
   formatErrorForDisplay,
-  OpenRouterAutoError 
-} from './errors';
+  getRetryDelay,
+  isRetryableError,
+  OpenRouterAutoError,
+  parseOpenRouterError,
+} from "./errors";
 
 // Storage
-export { 
+export {
   createStorage,
-  MemoryStorage,
-  LocalStorageAdapter,
   FileStorageAdapter,
-  STORAGE_KEYS,
-  getStoredModels,
-  setStoredModels,
   getModelConfigs,
-  setModelConfig,
-  removeModelConfig,
+  getStoredModels,
   getUserPreferences,
+  LocalStorageAdapter,
+  MemoryStorage,
+  removeModelConfig,
+  setModelConfig,
+  setStoredModels,
   setUserPreferences,
-} from './storage';
+  STORAGE_KEYS,
+} from "./storage";
 
 // Parameters
 export {
   DEFAULT_PARAMETERS,
-  getModelParameters,
-  validateParameter,
-  validateParameters,
   getDefaultParameters,
-  mergeWithDefaults,
-  sanitizeParameters,
+  getModelParameters,
+  getParameterConstraints,
   getParameterHelp,
   isParameterSupported,
-  getParameterConstraints,
-} from './parameters';
+  mergeWithDefaults,
+  sanitizeParameters,
+  validateParameter,
+  validateParameters,
+} from "./parameters";
 
 // Cost
 export {
-  calculateCost,
-  estimateTokens,
   calculateChatCost,
+  calculateCost,
+  calculateMonthlyEstimate,
+  compareModelCosts,
+  estimateTokens,
   formatCost,
   formatPricePer1K,
-  compareModelCosts,
   getCheapestModel,
-  isFreeModel,
-  getPriceTier,
-  calculateMonthlyEstimate,
   getCostBreakdown,
-} from './cost';
+  getPriceTier,
+  isFreeModel,
+} from "./cost";
 
 // Version
-export const VERSION = '1.0.0';
+export const VERSION = "1.0.0";

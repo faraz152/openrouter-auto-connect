@@ -1,7 +1,7 @@
 /** @type {import('ts-jest').JestConfigWithTsJest} */
 module.exports = {
   transform: {
-    '^.+\\.tsx?$': 'ts-jest',
+    "^.+\\.tsx?$": "ts-jest",
   },
-  testMatch: ['**/packages/core/__tests__/**/*.test.ts'],
+  testMatch: ["**/packages/core/__tests__/**/*.test.ts"],
 };

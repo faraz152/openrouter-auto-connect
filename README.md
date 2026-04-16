@@ -12,13 +12,13 @@ A **monorepo SDK** that automatically fetches, validates, and manages all 300+ O
 
 ## What is this?
 
-| Before                  | After                                      |
-| ----------------------- | ------------------------------------------ |
-| Hardcode model IDs      | Auto-fetch all 345+ models                 |
-| Manual parameter config | Dynamic validation from model capabilities |
-| No cost preview         | Real-time cost estimation (incl. reasoning)|
+| Before                  | After                                           |
+| ----------------------- | ----------------------------------------------- |
+| Hardcode model IDs      | Auto-fetch all 345+ models                      |
+| Manual parameter config | Dynamic validation from model capabilities      |
+| No cost preview         | Real-time cost estimation (incl. reasoning)     |
 | Basic chat only         | Streaming, reasoning, tools, vision, web search |
-| Framework-specific      | TypeScript + React + Python                |
+| Framework-specific      | TypeScript + React + Python                     |
 
 ---
 
@@ -226,6 +226,7 @@ const cheapModels = or.filterModels({ maxPrice: 0.001, provider: "openai" });
 Typed streaming chunks — content, reasoning, and tool calls accumulated automatically.
 
 **TypeScript**
+
 ```typescript
 import { OpenRouterAuto, StreamAccumulator } from "@openrouter-auto/core";
 
@@ -240,10 +241,11 @@ for await (const chunk of or.streamChat({
 }
 
 const response = acc.toResponse(); // complete ChatResponse
-console.log(acc.finishReason);     // "stop"
+console.log(acc.finishReason); // "stop"
 ```
 
 **Python**
+
 ```python
 from openrouter_auto import StreamAccumulator
 
@@ -264,6 +266,7 @@ print(acc.finish_reason)
 Models like MiniMax M2.7 and DeepSeek-R1 emit a `reasoning` field separately from `content`. `StreamAccumulator` captures both.
 
 **TypeScript**
+
 ```typescript
 const acc = new StreamAccumulator();
 
@@ -276,10 +279,11 @@ for await (const chunk of or.streamChat({
 }
 
 console.log("Reasoning:", acc.reasoning); // internal chain-of-thought
-console.log("Answer:   ", acc.content);   // final response
+console.log("Answer:   ", acc.content); // final response
 ```
 
 **Python**
+
 ```python
 from openrouter_auto.types import ChatRequest, ChatMessage
 
@@ -304,34 +308,38 @@ print("Answer:   ", acc.content)
 Pass standard OpenAI-compatible function definitions. `StreamAccumulator` correctly assembles incremental tool-call deltas.
 
 **TypeScript**
+
 ```typescript
 const response = await or.chat({
   model: "openai/gpt-4.1-nano",
   messages: [{ role: "user", content: "What's the weather in Tokyo?" }],
-  tools: [{
-    type: "function",
-    function: {
-      name: "get_weather",
-      description: "Get current weather for a city",
-      parameters: {
-        type: "object",
-        properties: {
-          location: { type: "string" },
-          unit: { type: "string", enum: ["celsius", "fahrenheit"] },
+  tools: [
+    {
+      type: "function",
+      function: {
+        name: "get_weather",
+        description: "Get current weather for a city",
+        parameters: {
+          type: "object",
+          properties: {
+            location: { type: "string" },
+            unit: { type: "string", enum: ["celsius", "fahrenheit"] },
+          },
+          required: ["location"],
         },
-        required: ["location"],
       },
     },
-  }],
+  ],
   tool_choice: "auto",
 });
 
 const toolCall = response.choices[0].message.tool_calls?.[0];
-console.log(toolCall.function.name);       // "get_weather"
-console.log(toolCall.function.arguments);  // '{"location":"Tokyo","unit":"celsius"}'
+console.log(toolCall.function.name); // "get_weather"
+console.log(toolCall.function.arguments); // '{"location":"Tokyo","unit":"celsius"}'
 ```
 
 **Python** (streaming + accumulator)
+
 ```python
 acc = StreamAccumulator()
 async for chunk in sdk.stream_chat(request):   # request has tools=[...]
@@ -349,6 +357,7 @@ print(tool_calls[0]["function"]["arguments"])
 Use the built-in `create_web_search_tool()` / `createWebSearchTool()` helper to add a server-side web search tool.
 
 **TypeScript**
+
 ```typescript
 import { createWebSearchTool, enableWebSearch } from "@openrouter-auto/core";
 
@@ -364,6 +373,7 @@ const patchedRequest = enableWebSearch(request);
 ```
 
 **Python**
+
 ```python
 from openrouter_auto import create_web_search_tool, enable_web_search
 from openrouter_auto.types import ChatRequest, ChatMessage
@@ -390,21 +400,28 @@ print(acc.content)    # answer with live web context
 Pass a `content` array with `text` and `image_url` parts to any vision-capable model.
 
 **TypeScript**
+
 ```typescript
 const response = await or.chat({
   model: "openai/gpt-4.1-mini",
-  messages: [{
-    role: "user",
-    content: [
-      { type: "text", text: "Describe this image in one sentence." },
-      { type: "image_url", image_url: { url: "https://example.com/image.png" } },
-    ],
-  }],
+  messages: [
+    {
+      role: "user",
+      content: [
+        { type: "text", text: "Describe this image in one sentence." },
+        {
+          type: "image_url",
+          image_url: { url: "https://example.com/image.png" },
+        },
+      ],
+    },
+  ],
   max_tokens: 100,
 });
 ```
 
 **Python**
+
 ```python
 from openrouter_auto.types import ChatMessage
 
@@ -424,6 +441,7 @@ message = ChatMessage(
 Control which provider handles the request and define fallback model lists.
 
 **TypeScript**
+
 ```typescript
 const response = await or.chat({
   model: "openai/gpt-4.1-nano",
@@ -440,6 +458,7 @@ console.log(response.model); // whichever model was actually used
 ```
 
 **Python**
+
 ```python
 request = ChatRequest(
     model="openai/gpt-4.1-nano",
@@ -507,6 +526,7 @@ console.log(`Reasoning portion: $${cost.reasoningCost}`);
 ```
 
 **Python**
+
 ```python
 from openrouter_auto.cost import calculate_cost
 
@@ -540,7 +560,7 @@ new OpenRouterAuto({
 try {
   await or.chat({ model: "bad-model", messages: [] });
 } catch (error) {
-  console.log(error.code);     // 'MODEL_NOT_FOUND'
+  console.log(error.code); // 'MODEL_NOT_FOUND'
   console.log(error.retryable); // false
 }
 ```

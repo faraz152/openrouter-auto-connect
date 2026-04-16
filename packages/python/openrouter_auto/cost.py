@@ -17,17 +17,17 @@ def calculate_cost(
     Reasoning tokens are billed at the completion rate by default on OpenRouter.
     """
     pricing = model.pricing
-    
+
     # Parse pricing (stored as strings)
     prompt_price = float(pricing.prompt) if pricing.prompt else 0.0
     completion_price = float(pricing.completion) if pricing.completion else 0.0
-    
+
     # Calculate costs (prices are per 1K tokens)
     prompt_cost = (prompt_tokens / 1000) * prompt_price
     completion_cost = (completion_tokens / 1000) * completion_price
     # Reasoning tokens billed at completion rate
     reasoning_cost = (reasoning_tokens / 1000) * completion_price
-    
+
     return CostEstimate(
         prompt_cost=prompt_cost,
         completion_cost=completion_cost,
@@ -57,7 +57,7 @@ def calculate_chat_cost(
         prompt_tokens += estimate_tokens(content)
         # Add overhead for message format
         prompt_tokens += 4
-    
+
     return calculate_cost(model, prompt_tokens, expected_response_tokens)
 
 
@@ -92,7 +92,7 @@ def compare_model_costs(
     for model in models:
         cost = calculate_cost(model, prompt_tokens, completion_tokens)
         results.append((model, cost))
-    
+
     # Sort by total cost
     results.sort(key=lambda x: x[1].total_cost)
     return results
@@ -120,7 +120,7 @@ def get_price_tier(model: OpenRouterModel) -> str:
     prompt_price = float(model.pricing.prompt) if model.pricing.prompt else 0.0
     completion_price = float(model.pricing.completion) if model.pricing.completion else 0.0
     avg_price = (prompt_price + completion_price) / 2
-    
+
     if avg_price == 0:
         return "free"
     if avg_price < 0.0001:
@@ -139,7 +139,7 @@ def calculate_monthly_estimate(
     """Calculate monthly cost estimate"""
     daily_cost = calculate_cost(model, avg_prompt_tokens, avg_completion_tokens)
     monthly_cost = daily_cost.total_cost * daily_requests * 30
-    
+
     return CostEstimate(
         prompt_cost=daily_cost.prompt_cost * daily_requests * 30,
         completion_cost=daily_cost.completion_cost * daily_requests * 30,
@@ -154,7 +154,7 @@ def get_cost_breakdown(
 ) -> dict:
     """Get cost breakdown for display"""
     cost = calculate_cost(model, prompt_tokens, completion_tokens)
-    
+
     return {
         "prompt": format_cost(cost.prompt_cost),
         "completion": format_cost(cost.completion_cost),
