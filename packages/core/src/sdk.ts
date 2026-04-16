@@ -26,6 +26,7 @@ import {
 import {
   ChatRequest,
   ChatResponse,
+  ChatMessage,
   CostEstimate,
   EventHandler,
   ModelConfig,
@@ -36,6 +37,7 @@ import {
   OpenRouterEventType,
   OpenRouterModel,
   StorageAdapter,
+  ToolCall,
   UserPreferences,
 } from "./types";
 
@@ -673,4 +675,138 @@ export function createOpenRouterAuto(
   options: OpenRouterAutoOptions,
 ): OpenRouterAuto {
   return new OpenRouterAuto(options);
+}
+
+// ==================== Stream Accumulator ====================
+
+/**
+ * Accumulates streaming chunks into a complete ChatResponse.
+ * Handles content, reasoning, and tool_calls deltas.
+ *
+ * Usage:
+ *   const acc = new StreamAccumulator();
+ *   for await (const chunk of sdk.streamChat(request)) {
+ *     acc.push(chunk);
+ *     console.log(acc.content);   // text so far
+ *     console.log(acc.reasoning); // reasoning so far
+ *   }
+ *   const response = acc.toResponse();
+ */
+export class StreamAccumulator {
+  content: string = "";
+  reasoning: string = "";
+  toolCalls: ToolCall[] = [];
+  finishReason: string = "";
+
+  private id: string = "";
+  private model: string = "";
+  private created: number = 0;
+  private usage: ChatResponse["usage"];
+
+  /** Partial tool_calls indexed by position. */
+  private toolCallPartials: Map<number, { id: string; type: string; name: string; arguments: string }> = new Map();
+
+  /**
+   * Push a raw streaming chunk into the accumulator.
+   */
+  push(chunk: any): void {
+    if (!chunk?.choices?.length) {
+      // Final chunk may contain usage only
+      if (chunk?.usage) {
+        this.usage = chunk.usage;
+      }
+      return;
+    }
+
+    // Top-level fields
+    if (chunk.id) this.id = chunk.id;
+    if (chunk.model) this.model = chunk.model;
+    if (chunk.created) this.created = chunk.created;
+    if (chunk.usage) this.usage = chunk.usage;
+
+    const choice = chunk.choices[0];
+    const delta = choice?.delta || {};
+
+    // Finish reason
+    if (choice.finish_reason) {
+      this.finishReason = choice.finish_reason;
+    }
+
+    // Content
+    if (delta.content) {
+      this.content += delta.content;
+    }
+
+    // Reasoning (MiniMax, DeepSeek, OpenAI o-series)
+    if (delta.reasoning) {
+      this.reasoning += delta.reasoning;
+    }
+    if (delta.reasoning_content) {
+      this.reasoning += delta.reasoning_content;
+    }
+
+    // Tool calls (incremental)
+    if (delta.tool_calls) {
+      for (const tc of delta.tool_calls) {
+        const idx = tc.index ?? 0;
+        let partial = this.toolCallPartials.get(idx);
+        if (!partial) {
+          partial = { id: "", type: "function", name: "", arguments: "" };
+          this.toolCallPartials.set(idx, partial);
+        }
+        if (tc.id) partial.id = tc.id;
+        if (tc.type) partial.type = tc.type;
+        if (tc.function?.name) partial.name += tc.function.name;
+        if (tc.function?.arguments) partial.arguments += tc.function.arguments;
+      }
+    }
+  }
+
+  /**
+   * Build the accumulated tool calls array.
+   */
+  getToolCalls(): ToolCall[] {
+    const calls: ToolCall[] = [];
+    const sorted = [...this.toolCallPartials.entries()].sort((a, b) => a[0] - b[0]);
+    for (const [, p] of sorted) {
+      calls.push({
+        id: p.id,
+        type: "function",
+        function: { name: p.name, arguments: p.arguments },
+      });
+    }
+    return calls;
+  }
+
+  /**
+   * Build a ChatResponse from accumulated data.
+   */
+  toResponse(): ChatResponse {
+    const toolCalls = this.getToolCalls();
+    const message: ChatMessage = {
+      role: "assistant",
+      content: this.content || null,
+    };
+
+    if (toolCalls.length > 0) {
+      message.tool_calls = toolCalls;
+    }
+    if (this.reasoning) {
+      message.reasoning = this.reasoning;
+    }
+
+    return {
+      id: this.id,
+      model: this.model,
+      choices: [
+        {
+          index: 0,
+          message,
+          finish_reason: this.finishReason,
+        },
+      ],
+      usage: this.usage,
+      created: this.created,
+    };
+  }
 }

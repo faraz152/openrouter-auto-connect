@@ -19,7 +19,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(__file__))
 
-from openrouter_auto.sdk import create_openrouter_auto
+from openrouter_auto.sdk import create_openrouter_auto, StreamAccumulator
 from openrouter_auto.types import ChatRequest, ChatMessage
 
 SEP = "─" * 60
@@ -159,10 +159,8 @@ async def run() -> None:
         await sdk.close()
         sys.exit(1)
 
-    # ── 6. Streaming chat request ──────────────────────────────
-    section("STEP 6 — Streaming chat")
-    chunks_received = 0
-    streamed_text = ""
+    # ── 6. Streaming chat with StreamAccumulator ─────────────────
+    section("STEP 6 — Streaming chat (StreamAccumulator)")
 
     stream_request = ChatRequest(
         model=selected.id,
@@ -174,19 +172,21 @@ async def run() -> None:
     )
 
     try:
+        acc = StreamAccumulator()
         async for chunk in sdk.stream_chat(stream_request):
-            choice = (chunk.get("choices") or [{}])[0]
-            delta = choice.get("delta", {})
-            # MiniMax M2.7 is a reasoning model — answer text arrives in
-            # delta["reasoning"] while delta["content"] stays empty
-            text = delta.get("content") or delta.get("reasoning") or delta.get("reasoning_content") or ""
-            if text:
-                streamed_text += text
-                chunks_received += 1
-        ok(f"Received {chunks_received} content chunks")
-        ok(f"Full streamed response:\n{streamed_text.strip()}")
+            acc.push(chunk)
+
+        ok(f"Content  : {acc.content!r}")
+        ok(f"Reasoning: {acc.reasoning[:120]!r}{'…' if len(acc.reasoning) > 120 else ''}")
+        ok(f"Finish   : {acc.finish_reason}")
+        ok(f"Tool calls: {len(acc.get_tool_calls())}")
+
+        full_response = acc.to_response()
+        ok(f"Reconstructed response ID: {full_response.id}")
     except Exception as ex:
         err(f"Streaming failed: {ex}")
+        import traceback
+        traceback.print_exc()
 
     # ── Summary ───────────────────────────────────────────────
     print(f"\n{SEP}")

@@ -7,7 +7,7 @@
 export * from './types';
 
 // SDK
-export { OpenRouterAuto, createOpenRouterAuto } from './sdk';
+export { OpenRouterAuto, createOpenRouterAuto, StreamAccumulator } from './sdk';
 
 // Errors
 export { 

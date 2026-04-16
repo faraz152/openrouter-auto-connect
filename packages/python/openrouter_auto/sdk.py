@@ -518,3 +518,121 @@ class OpenRouterAuto:
 def create_openrouter_auto(options: Dict[str, Any]) -> OpenRouterAuto:
     """Factory function to create OpenRouterAuto instance"""
     return OpenRouterAuto(options)
+
+
+# ==================== Stream Accumulator ====================
+
+class StreamAccumulator:
+    """Accumulates streaming chunks into a complete ChatResponse.
+    Handles content, reasoning, and tool_calls deltas.
+
+    Usage:
+        acc = StreamAccumulator()
+        async for chunk in sdk.stream_chat(request):
+            acc.push(chunk)
+            print(acc.content)    # text so far
+            print(acc.reasoning)  # reasoning so far
+        response = acc.to_response()
+    """
+
+    def __init__(self) -> None:
+        self.content: str = ""
+        self.reasoning: str = ""
+        self.finish_reason: str = ""
+        self._id: str = ""
+        self._model: str = ""
+        self._created: int = 0
+        self._usage: Optional[Dict[str, Any]] = None
+        self._tool_call_partials: Dict[int, Dict[str, str]] = {}
+
+    def push(self, chunk: Dict[str, Any]) -> None:
+        """Push a raw streaming chunk into the accumulator."""
+        choices = chunk.get("choices")
+        if not choices:
+            # Final chunk may contain usage only
+            if chunk.get("usage"):
+                self._usage = chunk["usage"]
+            return
+
+        # Top-level fields
+        if chunk.get("id"):
+            self._id = chunk["id"]
+        if chunk.get("model"):
+            self._model = chunk["model"]
+        if chunk.get("created"):
+            self._created = chunk["created"]
+        if chunk.get("usage"):
+            self._usage = chunk["usage"]
+
+        choice = choices[0]
+        delta = choice.get("delta", {})
+
+        # Finish reason
+        if choice.get("finish_reason"):
+            self.finish_reason = choice["finish_reason"]
+
+        # Content
+        if delta.get("content"):
+            self.content += delta["content"]
+
+        # Reasoning (MiniMax, DeepSeek, OpenAI o-series)
+        if delta.get("reasoning"):
+            self.reasoning += delta["reasoning"]
+        if delta.get("reasoning_content"):
+            self.reasoning += delta["reasoning_content"]
+
+        # Tool calls (incremental)
+        tool_calls = delta.get("tool_calls")
+        if tool_calls:
+            for tc in tool_calls:
+                idx = tc.get("index", 0)
+                if idx not in self._tool_call_partials:
+                    self._tool_call_partials[idx] = {
+                        "id": "", "type": "function", "name": "", "arguments": ""
+                    }
+                partial = self._tool_call_partials[idx]
+                if tc.get("id"):
+                    partial["id"] = tc["id"]
+                if tc.get("type"):
+                    partial["type"] = tc["type"]
+                func = tc.get("function", {})
+                if func.get("name"):
+                    partial["name"] += func["name"]
+                if func.get("arguments"):
+                    partial["arguments"] += func["arguments"]
+
+    def get_tool_calls(self) -> List[Dict[str, Any]]:
+        """Build the accumulated tool calls list."""
+        calls = []
+        for idx in sorted(self._tool_call_partials.keys()):
+            p = self._tool_call_partials[idx]
+            calls.append({
+                "id": p["id"],
+                "type": "function",
+                "function": {"name": p["name"], "arguments": p["arguments"]},
+            })
+        return calls
+
+    def to_response(self) -> ChatResponse:
+        """Build a ChatResponse from accumulated data."""
+        tool_calls = self.get_tool_calls()
+        message: Dict[str, Any] = {
+            "role": "assistant",
+            "content": self.content or None,
+        }
+        if tool_calls:
+            message["tool_calls"] = tool_calls
+        if self.reasoning:
+            message["reasoning"] = self.reasoning
+
+        return ChatResponse(
+            id=self._id,
+            model=self._model,
+            choices=[{
+                "index": 0,
+                "message": message,
+                "finish_reason": self.finish_reason,
+            }],
+            usage=self._usage,
+            created=self._created,
+        )

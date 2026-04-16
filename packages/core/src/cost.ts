@@ -7,11 +7,13 @@ import { OpenRouterModel, CostEstimate } from './types';
 
 /**
  * Calculate cost for a request
+ * Reasoning tokens are billed at the completion rate by default on OpenRouter.
  */
 export function calculateCost(
   model: OpenRouterModel,
   promptTokens: number,
-  completionTokens: number = 0
+  completionTokens: number = 0,
+  reasoningTokens: number = 0
 ): CostEstimate {
   const pricing = model.pricing;
   
@@ -22,11 +24,14 @@ export function calculateCost(
   // Calculate costs (prices are per 1K tokens)
   const promptCost = (promptTokens / 1000) * promptPrice;
   const completionCost = (completionTokens / 1000) * completionPrice;
+  // Reasoning tokens billed at completion rate
+  const reasoningCost = (reasoningTokens / 1000) * completionPrice;
   
   return {
     promptCost,
     completionCost,
-    totalCost: promptCost + completionCost,
+    reasoningCost,
+    totalCost: promptCost + completionCost + reasoningCost,
     currency: 'USD',
   };
 }
@@ -145,6 +150,7 @@ export function calculateMonthlyEstimate(
   return {
     promptCost: dailyCost.promptCost * dailyRequests * 30,
     completionCost: dailyCost.completionCost * dailyRequests * 30,
+    reasoningCost: dailyCost.reasoningCost * dailyRequests * 30,
     totalCost: monthlyCost,
     currency: 'USD',
   };

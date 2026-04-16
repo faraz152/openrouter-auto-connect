@@ -10,9 +10,12 @@ from .types import OpenRouterModel, CostEstimate
 def calculate_cost(
     model: OpenRouterModel,
     prompt_tokens: int,
-    completion_tokens: int = 0
+    completion_tokens: int = 0,
+    reasoning_tokens: int = 0
 ) -> CostEstimate:
-    """Calculate cost for a request"""
+    """Calculate cost for a request.
+    Reasoning tokens are billed at the completion rate by default on OpenRouter.
+    """
     pricing = model.pricing
     
     # Parse pricing (stored as strings)
@@ -22,11 +25,14 @@ def calculate_cost(
     # Calculate costs (prices are per 1K tokens)
     prompt_cost = (prompt_tokens / 1000) * prompt_price
     completion_cost = (completion_tokens / 1000) * completion_price
+    # Reasoning tokens billed at completion rate
+    reasoning_cost = (reasoning_tokens / 1000) * completion_price
     
     return CostEstimate(
         prompt_cost=prompt_cost,
         completion_cost=completion_cost,
-        total_cost=prompt_cost + completion_cost,
+        reasoning_cost=reasoning_cost,
+        total_cost=prompt_cost + completion_cost + reasoning_cost,
     )
 
 

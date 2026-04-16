@@ -167,15 +167,34 @@ class UserPreferences:
 @dataclass
 class ChatMessage:
     """Chat message"""
-    role: str
-    content: str
+    role: str  # 'system' | 'user' | 'assistant' | 'tool'
+    content: Union[str, List[Dict[str, Any]], None] = None
     name: Optional[str] = None
+    # Tool calling
+    tool_calls: Optional[List[Dict[str, Any]]] = None
+    tool_call_id: Optional[str] = None
+    # Reasoning (response only)
+    reasoning: Optional[str] = None
+    reasoning_content: Optional[str] = None
+    reasoning_details: Optional[List[Dict[str, Any]]] = None
+    refusal: Optional[str] = None
+    # Web search annotations (response only)
+    annotations: Optional[List[Dict[str, Any]]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary"""
-        result = {"role": self.role, "content": self.content}
+        result: Dict[str, Any] = {"role": self.role}
+        # content can be str, list, or None
+        if self.content is not None:
+            result["content"] = self.content
+        else:
+            result["content"] = None
         if self.name:
             result["name"] = self.name
+        if self.tool_calls is not None:
+            result["tool_calls"] = self.tool_calls
+        if self.tool_call_id is not None:
+            result["tool_call_id"] = self.tool_call_id
         return result
 
 
@@ -188,6 +207,7 @@ class ChatRequest:
     top_p: Optional[float] = None
     top_k: Optional[int] = None
     max_tokens: Optional[int] = None
+    max_completion_tokens: Optional[int] = None
     frequency_penalty: Optional[float] = None
     presence_penalty: Optional[float] = None
     repetition_penalty: Optional[float] = None
@@ -196,9 +216,17 @@ class ChatRequest:
     seed: Optional[int] = None
     stop: Optional[Union[str, List[str]]] = None
     stream: Optional[bool] = None
+    # Tool calling
     tools: Optional[List[Any]] = None
     tool_choice: Optional[Any] = None
+    parallel_tool_calls: Optional[bool] = None
+    # Reasoning
+    reasoning: Optional[Dict[str, Any]] = None
+    include: Optional[List[str]] = None
+    # Response format
     response_format: Optional[Any] = None
+    # Catch-all for forward compatibility
+    extra: Optional[Dict[str, Any]] = None
 
     def to_dict(self) -> Dict[str, Any]:
         """Convert to dictionary"""
@@ -210,15 +238,22 @@ class ChatRequest:
         # Add optional parameters
         optional_params = [
             "temperature", "top_p", "top_k", "max_tokens",
+            "max_completion_tokens",
             "frequency_penalty", "presence_penalty", "repetition_penalty",
             "min_p", "top_a", "seed", "stop", "stream",
-            "tools", "tool_choice", "response_format"
+            "tools", "tool_choice", "parallel_tool_calls",
+            "reasoning", "include",
+            "response_format",
         ]
         
         for param in optional_params:
-            value = getattr(self, param)
+            value = getattr(self, param, None)
             if value is not None:
                 result[param] = value
+        
+        # Merge extra dict for forward compatibility
+        if self.extra:
+            result.update(self.extra)
         
         return result
 
@@ -285,7 +320,8 @@ class CostEstimate:
     """Cost estimate"""
     prompt_cost: float
     completion_cost: float
-    total_cost: float
+    reasoning_cost: float = 0.0
+    total_cost: float = 0.0
     currency: str = "USD"
 
 

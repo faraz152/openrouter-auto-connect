@@ -91,11 +91,99 @@ export interface StorageAdapter {
   clear(): Promise<void>;
 }
 
+// ==================== Tool Calling Types ====================
+
+// Function definition (used inside a tool)
+export interface FunctionDefinition {
+  name: string;
+  description?: string;
+  parameters?: Record<string, any>;
+}
+
+// Tool definition passed in the request
+export interface ToolDefinition {
+  type: 'function';
+  function: FunctionDefinition;
+}
+
+// Tool call returned by the model
+export interface ToolCall {
+  id: string;
+  type: 'function';
+  function: {
+    name: string;
+    arguments: string;
+  };
+}
+
+// ==================== Reasoning Types ====================
+
+// Reasoning configuration for the request
+export interface ReasoningConfig {
+  effort?: 'low' | 'medium' | 'high';
+  max_tokens?: number;
+}
+
+// Reasoning detail block in the response
+export interface ReasoningDetail {
+  type: string;
+  text: string;
+  format?: string;
+  index?: number;
+}
+
+// ==================== Content Types ====================
+
+// Text content part (for multimodal messages)
+export interface TextContentPart {
+  type: 'text';
+  text: string;
+}
+
+// Image URL content part
+export interface ImageUrlContentPart {
+  type: 'image_url';
+  image_url: {
+    url: string;
+    detail?: 'auto' | 'low' | 'high';
+  };
+}
+
+// Union of content parts
+export type ContentPart = TextContentPart | ImageUrlContentPart;
+
+// ==================== Annotation Types ====================
+
+// URL citation from web search
+export interface UrlCitation {
+  url: string;
+  title?: string;
+  content?: string;
+  start_index?: number;
+  end_index?: number;
+}
+
+// Annotation on a response message
+export interface Annotation {
+  type: 'url_citation';
+  url_citation: UrlCitation;
+}
+
 // Chat Message
 export interface ChatMessage {
-  role: 'system' | 'user' | 'assistant';
-  content: string;
+  role: 'system' | 'user' | 'assistant' | 'tool';
+  content: string | ContentPart[] | null;
   name?: string;
+  // Tool calling
+  tool_calls?: ToolCall[];
+  tool_call_id?: string;
+  // Reasoning (response only)
+  reasoning?: string;
+  reasoning_content?: string;
+  reasoning_details?: ReasoningDetail[];
+  refusal?: string;
+  // Web search annotations (response only)
+  annotations?: Annotation[];
 }
 
 // Chat Request
@@ -106,6 +194,7 @@ export interface ChatRequest {
   top_p?: number;
   top_k?: number;
   max_tokens?: number;
+  max_completion_tokens?: number;
   frequency_penalty?: number;
   presence_penalty?: number;
   repetition_penalty?: number;
@@ -114,10 +203,24 @@ export interface ChatRequest {
   seed?: number;
   stop?: string | string[];
   stream?: boolean;
-  tools?: any[];
-  tool_choice?: any;
+  // Tool calling
+  tools?: (ToolDefinition | Record<string, any>)[];
+  tool_choice?: 'auto' | 'none' | { type: 'function'; function: { name: string } };
+  parallel_tool_calls?: boolean;
+  // Reasoning
+  reasoning?: ReasoningConfig;
+  include?: string[];
+  // Response format
   response_format?: any;
+  // Catch-all for forward compatibility
   [key: string]: any;
+}
+
+// Token usage details
+export interface CompletionTokensDetails {
+  reasoning_tokens?: number;
+  accepted_prediction_tokens?: number;
+  rejected_prediction_tokens?: number;
 }
 
 // Chat Response
@@ -133,6 +236,7 @@ export interface ChatResponse {
     prompt_tokens: number;
     completion_tokens: number;
     total_tokens: number;
+    completion_tokens_details?: CompletionTokensDetails;
   };
   created: number;
 }
@@ -185,6 +289,7 @@ export interface ModelFilterOptions {
 export interface CostEstimate {
   promptCost: number;
   completionCost: number;
+  reasoningCost: number;
   totalCost: number;
   currency: string;
 }

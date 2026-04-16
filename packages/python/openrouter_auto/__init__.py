@@ -3,7 +3,7 @@ OpenRouter Auto - Python SDK
 Auto-configure and use any OpenRouter model with zero setup
 """
 
-from .sdk import OpenRouterAuto, create_openrouter_auto
+from .sdk import OpenRouterAuto, create_openrouter_auto, StreamAccumulator
 from .types import (
     OpenRouterModel,
     ModelConfig,
@@ -48,6 +48,7 @@ __version__ = "1.0.0"
 __all__ = [
     "OpenRouterAuto",
     "create_openrouter_auto",
+    "StreamAccumulator",
     "OpenRouterModel",
     "ModelConfig",
     "ChatMessage",
