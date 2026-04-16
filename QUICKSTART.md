@@ -256,7 +256,126 @@ or_auto = create_openrouter_auto({
 })
 ```
 
-## 🆘 Troubleshooting
+## � Advanced Features
+
+### Streaming with StreamAccumulator
+
+```python
+from openrouter_auto import StreamAccumulator
+from openrouter_auto.types import ChatRequest, ChatMessage
+
+request = ChatRequest(
+    model="openai/gpt-4.1-nano",
+    messages=[ChatMessage(role="user", content="Count to 5.")],
+)
+
+acc = StreamAccumulator()
+async for chunk in sdk.stream_chat(request):
+    acc.push(chunk)
+
+print(acc.content)       # full accumulated text
+print(acc.finish_reason) # "stop"
+response = acc.to_response()
+```
+
+### Reasoning Models
+
+```python
+request = ChatRequest(
+    model="minimax/minimax-m2.7",  # or deepseek/deepseek-r1
+    messages=[ChatMessage(role="user", content="Solve 120km in 2h — step by step.")],
+    reasoning={"effort": "high"},
+)
+
+acc = StreamAccumulator()
+async for chunk in sdk.stream_chat(request):
+    acc.push(chunk)
+
+print("Chain of thought:", acc.reasoning[:200])
+print("Final answer:    ", acc.content)
+```
+
+### Tool Calling
+
+```python
+weather_tool = {
+    "type": "function",
+    "function": {
+        "name": "get_weather",
+        "description": "Get weather for a city",
+        "parameters": {
+            "type": "object",
+            "properties": {"location": {"type": "string"}},
+            "required": ["location"],
+        },
+    },
+}
+
+request = ChatRequest(
+    model="openai/gpt-4.1-nano",
+    messages=[ChatMessage(role="user", content="Weather in Tokyo?")],
+    tools=[weather_tool],
+    tool_choice="auto",
+)
+
+response = await sdk.chat(request)
+tc = response.choices[0]["message"]["tool_calls"][0]
+print(tc["function"]["name"])       # "get_weather"
+print(tc["function"]["arguments"])  # '{"location":"Tokyo"}'
+```
+
+### Web Search
+
+```python
+from openrouter_auto import enable_web_search
+
+request = ChatRequest(
+    model="openai/gpt-4.1-nano",
+    messages=[ChatMessage(role="user", content="What's in the news today?")],
+)
+request = enable_web_search(request)  # appends the web search server tool
+
+acc = StreamAccumulator()
+async for chunk in sdk.stream_chat(request):
+    acc.push(chunk)
+print(acc.content)
+```
+
+### Vision / Multimodal
+
+```python
+request = ChatRequest(
+    model="openai/gpt-4.1-mini",
+    messages=[ChatMessage(
+        role="user",
+        content=[
+            {"type": "text", "text": "Describe this image."},
+            {"type": "image_url", "image_url": {"url": "https://example.com/img.png"}},
+        ]
+    )],
+    max_tokens=100,
+)
+response = await sdk.chat(request)
+print(response.choices[0]["message"]["content"])
+```
+
+### Provider Routing + Fallback
+
+```python
+request = ChatRequest(
+    model="openai/gpt-4.1-nano",
+    messages=[ChatMessage(role="user", content="Hello!")],
+    provider={"order": ["OpenAI"], "allow_fallbacks": True},
+    models=["openai/gpt-4.1-nano", "openai/gpt-4.1-mini"],
+    route="fallback",
+)
+response = await sdk.chat(request)
+print("Used:", response.model)
+```
+
+---
+
+## �🆘 Troubleshooting
 
 ### "API key not found"
 

@@ -14,9 +14,10 @@ A **monorepo SDK** that automatically fetches, validates, and manages all 300+ O
 
 | Before                  | After                                      |
 | ----------------------- | ------------------------------------------ |
-| Hardcode model IDs      | Auto-fetch all 300+ models                 |
+| Hardcode model IDs      | Auto-fetch all 345+ models                 |
 | Manual parameter config | Dynamic validation from model capabilities |
-| No cost preview         | Real-time cost estimation                  |
+| No cost preview         | Real-time cost estimation (incl. reasoning)|
+| Basic chat only         | Streaming, reasoning, tools, vision, web search |
 | Framework-specific      | TypeScript + React + Python                |
 
 ---
@@ -220,12 +221,301 @@ const bigModels = or.filterModels({ minContextLength: 100000 });
 const cheapModels = or.filterModels({ maxPrice: 0.001, provider: "openai" });
 ```
 
+### Streaming with StreamAccumulator
+
+Typed streaming chunks — content, reasoning, and tool calls accumulated automatically.
+
+**TypeScript**
+```typescript
+import { OpenRouterAuto, StreamAccumulator } from "@openrouter-auto/core";
+
+const acc = new StreamAccumulator();
+
+for await (const chunk of or.streamChat({
+  model: "openai/gpt-4.1-nano",
+  messages: [{ role: "user", content: "Count to 5." }],
+})) {
+  acc.push(chunk);
+  process.stdout.write(acc.content); // live output
+}
+
+const response = acc.toResponse(); // complete ChatResponse
+console.log(acc.finishReason);     // "stop"
+```
+
+**Python**
+```python
+from openrouter_auto import StreamAccumulator
+
+acc = StreamAccumulator()
+
+async for chunk in sdk.stream_chat(request):
+    acc.push(chunk)
+    print(acc.content, end="", flush=True)
+
+response = acc.to_response()
+print(acc.finish_reason)
+```
+
+---
+
+### Reasoning Models
+
+Models like MiniMax M2.7 and DeepSeek-R1 emit a `reasoning` field separately from `content`. `StreamAccumulator` captures both.
+
+**TypeScript**
+```typescript
+const acc = new StreamAccumulator();
+
+for await (const chunk of or.streamChat({
+  model: "minimax/minimax-m2.7",
+  messages: [{ role: "user", content: "Solve: 120km in 2h, speed?" }],
+  reasoning: { effort: "high" },
+})) {
+  acc.push(chunk);
+}
+
+console.log("Reasoning:", acc.reasoning); // internal chain-of-thought
+console.log("Answer:   ", acc.content);   // final response
+```
+
+**Python**
+```python
+from openrouter_auto.types import ChatRequest, ChatMessage
+
+request = ChatRequest(
+    model="minimax/minimax-m2.7",
+    messages=[ChatMessage(role="user", content="120km in 2h, speed?")],
+    reasoning={"effort": "high"},
+)
+
+acc = StreamAccumulator()
+async for chunk in sdk.stream_chat(request):
+    acc.push(chunk)
+
+print("Reasoning:", acc.reasoning)
+print("Answer:   ", acc.content)
+```
+
+---
+
+### Tool Calling
+
+Pass standard OpenAI-compatible function definitions. `StreamAccumulator` correctly assembles incremental tool-call deltas.
+
+**TypeScript**
+```typescript
+const response = await or.chat({
+  model: "openai/gpt-4.1-nano",
+  messages: [{ role: "user", content: "What's the weather in Tokyo?" }],
+  tools: [{
+    type: "function",
+    function: {
+      name: "get_weather",
+      description: "Get current weather for a city",
+      parameters: {
+        type: "object",
+        properties: {
+          location: { type: "string" },
+          unit: { type: "string", enum: ["celsius", "fahrenheit"] },
+        },
+        required: ["location"],
+      },
+    },
+  }],
+  tool_choice: "auto",
+});
+
+const toolCall = response.choices[0].message.tool_calls?.[0];
+console.log(toolCall.function.name);       // "get_weather"
+console.log(toolCall.function.arguments);  // '{"location":"Tokyo","unit":"celsius"}'
+```
+
+**Python** (streaming + accumulator)
+```python
+acc = StreamAccumulator()
+async for chunk in sdk.stream_chat(request):   # request has tools=[...]
+    acc.push(chunk)
+
+tool_calls = acc.get_tool_calls()
+print(tool_calls[0]["function"]["name"])       # "get_weather"
+print(tool_calls[0]["function"]["arguments"])
+```
+
+---
+
+### Web Search
+
+Use the built-in `create_web_search_tool()` / `createWebSearchTool()` helper to add a server-side web search tool.
+
+**TypeScript**
+```typescript
+import { createWebSearchTool, enableWebSearch } from "@openrouter-auto/core";
+
+// Option A — helper that returns the tool descriptor
+const request = {
+  model: "openai/gpt-4.1-nano",
+  messages: [{ role: "user", content: "What happened in the news today?" }],
+  tools: [createWebSearchTool({ max_results: 3 })],
+};
+
+// Option B — one-liner helper that patches an existing request
+const patchedRequest = enableWebSearch(request);
+```
+
+**Python**
+```python
+from openrouter_auto import create_web_search_tool, enable_web_search
+from openrouter_auto.types import ChatRequest, ChatMessage
+
+request = ChatRequest(
+    model="openai/gpt-4.1-nano",
+    messages=[ChatMessage(role="user", content="What happened in the news today?")],
+)
+
+# enable_web_search returns a copy with the tool appended
+request = enable_web_search(request)
+
+acc = StreamAccumulator()
+async for chunk in sdk.stream_chat(request):
+    acc.push(chunk)
+
+print(acc.content)    # answer with live web context
+```
+
+---
+
+### Multimodal (Vision)
+
+Pass a `content` array with `text` and `image_url` parts to any vision-capable model.
+
+**TypeScript**
+```typescript
+const response = await or.chat({
+  model: "openai/gpt-4.1-mini",
+  messages: [{
+    role: "user",
+    content: [
+      { type: "text", text: "Describe this image in one sentence." },
+      { type: "image_url", image_url: { url: "https://example.com/image.png" } },
+    ],
+  }],
+  max_tokens: 100,
+});
+```
+
+**Python**
+```python
+from openrouter_auto.types import ChatMessage
+
+message = ChatMessage(
+    role="user",
+    content=[
+        {"type": "text", "text": "Describe this image in one sentence."},
+        {"type": "image_url", "image_url": {"url": "https://example.com/image.png"}},
+    ]
+)
+```
+
+---
+
+### Provider Routing & Model Fallback
+
+Control which provider handles the request and define fallback model lists.
+
+**TypeScript**
+```typescript
+const response = await or.chat({
+  model: "openai/gpt-4.1-nano",
+  messages: [{ role: "user", content: "Hello!" }],
+  provider: {
+    order: ["OpenAI", "Azure"],
+    allow_fallbacks: true,
+  },
+  models: ["openai/gpt-4.1-nano", "openai/gpt-4.1-mini"],
+  route: "fallback",
+});
+
+console.log(response.model); // whichever model was actually used
+```
+
+**Python**
+```python
+request = ChatRequest(
+    model="openai/gpt-4.1-nano",
+    messages=[ChatMessage(role="user", content="Hello!")],
+    provider={"order": ["OpenAI"], "allow_fallbacks": True},
+    models=["openai/gpt-4.1-nano", "openai/gpt-4.1-mini"],
+    route="fallback",
+)
+```
+
+---
+
+### Advanced Parameters
+
+#### Logprobs
+
+```typescript
+const response = await or.chat({
+  model: "openai/gpt-4o-mini",
+  messages: [{ role: "user", content: "Say hi." }],
+  logprobs: true,
+  top_logprobs: 5,
+});
+console.log(response.choices[0].logprobs);
+```
+
+#### Metadata & Session Tracking
+
+```typescript
+await or.chat({
+  model: "openai/gpt-4.1-nano",
+  messages: [...],
+  metadata: { "x-app": "my-app", "x-user-id": "u42" },
+  session_id: "session-001",
+  user: "user-42",
+});
+```
+
+#### Stream Options (usage in stream)
+
+```typescript
+const acc = new StreamAccumulator();
+
+for await (const chunk of or.streamChat({
+  model: "openai/gpt-4.1-nano",
+  messages: [...],
+  stream_options: { include_usage: true },
+})) {
+  acc.push(chunk);
+}
+
+console.log(acc.toResponse().usage); // token counts available in stream
+```
+
+---
+
 ### Cost Estimation
 
 ```typescript
-const cost = or.calculateCost("anthropic/claude-3.5-sonnet", 1000, 500);
-console.log(cost.totalCost); // in USD
+const cost = or.calculateCost("minimax/minimax-m2.7", 1000, 500, 300);
+//                                                            ^    ^    ^
+//                                                 prompt  comp  reasoning tokens
+console.log(`Total: $${cost.totalCost}`);
+console.log(`Reasoning portion: $${cost.reasoningCost}`);
 ```
+
+**Python**
+```python
+from openrouter_auto.cost import calculate_cost
+
+cost = calculate_cost(model, prompt_tokens=1000, completion_tokens=500, reasoning_tokens=300)
+print(f"Total: ${cost.total_cost:.6f}")
+print(f"Reasoning: ${cost.reasoning_cost:.6f}")
+```
+
+---
 
 ### Storage Options
 
@@ -250,7 +540,7 @@ new OpenRouterAuto({
 try {
   await or.chat({ model: "bad-model", messages: [] });
 } catch (error) {
-  console.log(error.code); // 'MODEL_NOT_FOUND'
+  console.log(error.code);     // 'MODEL_NOT_FOUND'
   console.log(error.retryable); // false
 }
 ```
@@ -309,44 +599,6 @@ See [PROJECT_SUMMARY.md](PROJECT_SUMMARY.md) for the full architecture diagram.
 ## License
 
 MIT © [faraz152](https://github.com/faraz152)
-
-## 🎯 What is OpenRouter Auto?
-
-OpenRouter Auto is a **zero-configuration SDK** that automatically fetches, configures, and manages all 300+ OpenRouter models. No more hardcoding model IDs or manually configuring parameters!
-
-### ✨ Key Features
-
-- 🔄 **Auto-fetch all models** - No hardcoded lists, always up-to-date
-- ⚙️ **Auto-configure parameters** - Dynamic forms based on model capabilities
-- 🧪 **Built-in model testing** - Test models before using them
-- 💰 **Real-time cost estimation** - See costs before making requests
-- 🎨 **React components** - Drop-in UI components for model selection
-- 🐍 **Python SDK** - Full Python support with async/await
-- 💾 **Multiple storage options** - Memory, localStorage, or config file
-- 🚨 **Smart error handling** - Helpful error messages with retry suggestions
-
-## 📦 Installation
-
-### JavaScript/TypeScript
-
-```bash
-# npm
-npm install openrouter-auto
-
-# yarn
-yarn add openrouter-auto
-
-# pnpm
-pnpm add openrouter-auto
-```
-
-### Python
-
-```bash
-pip install openrouter-auto
-```
-
-## 🚀 Quick Start
 
 ### JavaScript/TypeScript
 
