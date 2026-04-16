@@ -1,0 +1,31 @@
+{
+  "name": "openrouter-auto",
+  "version": "1.0.0",
+  "description": "Auto-configure and use any OpenRouter model with zero setup",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspaces",
+    "dev": "npm run dev --workspaces",
+    "test": "npm run test --workspaces",
+    "lint": "eslint packages/*/src/**/*.{ts,tsx}",
+    "clean": "rm -rf packages/*/dist packages/*/node_modules"
+  },
+  "keywords": [
+    "openrouter",
+    "ai",
+    "llm",
+    "models",
+    "auto-config",
+    "zero-setup"
+  ],
+  "author": "OpenRouter Auto Team",
+  "license": "MIT",
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0"
+  }
+}

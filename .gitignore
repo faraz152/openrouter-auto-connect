@@ -1,0 +1,65 @@
+# ── Dependencies ──────────────────────────────────────────────
+node_modules/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# ── Build outputs ─────────────────────────────────────────────
+dist/
+build/
+packages/*/dist/
+*.egg-info/
+.eggs/
+*.tgz
+
+# ── Python virtual environments ───────────────────────────────
+venv/
+.venv/
+env/
+.env/
+ENV/
+.python-version
+pip-wheel-metadata/
+
+# ── Config/secrets (may contain API keys) ────────────────────
+.openrouter-auto.json
+~/.openrouter-auto/
+config.json
+.env
+.env.local
+.env.*.local
+
+# ── IDE ───────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ── OS ────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+
+# ── Logs ──────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# ── Testing & coverage ────────────────────────────────────────
+coverage/
+htmlcov/
+.coverage
+.coverage.*
+.nyc_output/
+.pytest_cache/
+.mypy_cache/
+
+# ── Misc ──────────────────────────────────────────────────────
+.cache/
+temp/
+tmp/
