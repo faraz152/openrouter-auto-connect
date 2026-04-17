@@ -10,16 +10,16 @@
 
 The TS and Python SDKs duplicate ~40-50% of their code as identical data:
 
-| Duplicated Data                  | TS Source           | Python Source       | Lines |
-| -------------------------------- | ------------------- | ------------------- | ----- |
-| Parameter definitions + ranges   | `parameters.ts`     | `parameters.py`     | ~100  |
-| Platform params whitelist        | `parameters.ts`     | `parameters.py`     | ~25   |
-| Error code → status mapping      | `errors.ts`         | `errors.py`         | ~15   |
-| Error messages (user-facing)     | `errors.ts`         | `errors.py`         | ~12   |
-| Error tips                       | `errors.ts`         | `errors.py`         | ~10   |
-| Retryable error list             | `errors.ts`         | `errors.py`         | ~5    |
-| Price tier thresholds            | `cost.ts`           | `cost.py`           | ~8    |
-| **Total duplicated data lines**  |                     |                     | ~175  |
+| Duplicated Data                 | TS Source       | Python Source   | Lines |
+| ------------------------------- | --------------- | --------------- | ----- |
+| Parameter definitions + ranges  | `parameters.ts` | `parameters.py` | ~100  |
+| Platform params whitelist       | `parameters.ts` | `parameters.py` | ~25   |
+| Error code → status mapping     | `errors.ts`     | `errors.py`     | ~15   |
+| Error messages (user-facing)    | `errors.ts`     | `errors.py`     | ~12   |
+| Error tips                      | `errors.ts`     | `errors.py`     | ~10   |
+| Retryable error list            | `errors.ts`     | `errors.py`     | ~5    |
+| Price tier thresholds           | `cost.ts`       | `cost.py`       | ~8    |
+| **Total duplicated data lines** |                 |                 | ~175  |
 
 Every new language would add another 175 lines of copy-paste that must stay in sync.
 
@@ -76,13 +76,29 @@ Extract from `PLATFORM_PARAMS` (Set in TS, frozenset in Python):
 
 ```json
 [
-  "model", "messages", "stream", "stream_options",
-  "tools", "tool_choice", "parallel_tool_calls",
-  "reasoning", "include", "response_format",
-  "provider", "models", "route", "plugins",
-  "metadata", "trace", "session_id", "user",
-  "modalities", "logprobs", "top_logprobs",
-  "cache_control", "service_tier"
+  "model",
+  "messages",
+  "stream",
+  "stream_options",
+  "tools",
+  "tool_choice",
+  "parallel_tool_calls",
+  "reasoning",
+  "include",
+  "response_format",
+  "provider",
+  "models",
+  "route",
+  "plugins",
+  "metadata",
+  "trace",
+  "session_id",
+  "user",
+  "modalities",
+  "logprobs",
+  "top_logprobs",
+  "cache_control",
+  "service_tier"
 ]
 ```
 
@@ -98,7 +114,7 @@ Extract from `errors.ts` / `errors.py`:
     "429": "RATE_LIMITED",
     // ... all status→code mappings
     "ECONNREFUSED": "NETWORK_ERROR",
-    "ETIMEDOUT": "TIMEOUT"
+    "ETIMEDOUT": "TIMEOUT",
   },
   "messages": {
     "INVALID_API_KEY": "Invalid or missing API key. Please check your OpenRouter API key.",
@@ -111,9 +127,15 @@ Extract from `errors.ts` / `errors.py`:
     "MODEL_NOT_FOUND": "Try refreshing the model list to get the latest models.",
     "MODEL_UNAVAILABLE": "Free models are often intermittently unavailable. Use getBestFreeModel() to find a working one, or skip the test when adding.",
     "PROVIDER_ERROR": "This model may be temporarily unavailable. Try another model.",
-    "INVALID_PARAMETERS": "Check that your parameters are within the model's supported range."
+    "INVALID_PARAMETERS": "Check that your parameters are within the model's supported range.",
   },
-  "retryable": ["RATE_LIMITED", "PROVIDER_ERROR", "NETWORK_ERROR", "TIMEOUT", "MODEL_UNAVAILABLE"]
+  "retryable": [
+    "RATE_LIMITED",
+    "PROVIDER_ERROR",
+    "NETWORK_ERROR",
+    "TIMEOUT",
+    "MODEL_UNAVAILABLE",
+  ],
 }
 ```
 
@@ -138,12 +160,12 @@ Extract from `cost.ts` / `cost.py`:
 
 Changes per file:
 
-| File             | Change                                                                 |
-| ---------------- | ---------------------------------------------------------------------- |
-| `parameters.ts`  | Replace inline `DEFAULT_PARAMETERS` object with `import params from '../../registry/parameters.json'` + construct `ParameterDefinition[]` from it. Replace `PLATFORM_PARAMS` Set with import from `platform-params.json`. |
-| `errors.ts`      | Replace inline `ERROR_CODE_MAP`, `ERROR_MESSAGES`, tips, and `RETRYABLE_ERRORS` with imports from `errors.json`. |
-| `cost.ts`        | Replace hardcoded tier thresholds and token estimate constants with imports from `cost.json`. |
-| `tsconfig.json`  | Add `"resolveJsonModule": true` if not already present.                |
+| File            | Change                                                                                                                                                                                                                    |
+| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `parameters.ts` | Replace inline `DEFAULT_PARAMETERS` object with `import params from '../../registry/parameters.json'` + construct `ParameterDefinition[]` from it. Replace `PLATFORM_PARAMS` Set with import from `platform-params.json`. |
+| `errors.ts`     | Replace inline `ERROR_CODE_MAP`, `ERROR_MESSAGES`, tips, and `RETRYABLE_ERRORS` with imports from `errors.json`.                                                                                                          |
+| `cost.ts`       | Replace hardcoded tier thresholds and token estimate constants with imports from `cost.json`.                                                                                                                             |
+| `tsconfig.json` | Add `"resolveJsonModule": true` if not already present.                                                                                                                                                                   |
 
 **No changes to:** `types.ts`, `sdk.ts`, `storage.ts`, `index.ts`, React components.
 
@@ -153,11 +175,11 @@ Changes per file:
 
 Changes per file:
 
-| File             | Change                                                                 |
-| ---------------- | ---------------------------------------------------------------------- |
-| `parameters.py`  | Replace inline `DEFAULT_PARAMETERS` dict with `json.load()` from `../../registry/parameters.json` + construct `ParameterDefinition` objects. Replace `PLATFORM_PARAMS` frozenset with load from `platform-params.json`. |
-| `errors.py`      | Replace inline dicts with loads from `errors.json`.                    |
-| `cost.py`        | Replace hardcoded thresholds with loads from `cost.json`.              |
+| File            | Change                                                                                                                                                                                                                  |
+| --------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `parameters.py` | Replace inline `DEFAULT_PARAMETERS` dict with `json.load()` from `../../registry/parameters.json` + construct `ParameterDefinition` objects. Replace `PLATFORM_PARAMS` frozenset with load from `platform-params.json`. |
+| `errors.py`     | Replace inline dicts with loads from `errors.json`.                                                                                                                                                                     |
+| `cost.py`       | Replace hardcoded thresholds with loads from `cost.json`.                                                                                                                                                               |
 
 **JSON loading strategy:** Use `importlib.resources` or `pathlib.Path(__file__).resolve()` to find `packages/registry/` relative to the package.
 
@@ -289,18 +311,18 @@ Every new SDK only writes these runtime-specific parts:
 
 | Phase   | Scope                              | Depends On | Status      |
 | ------- | ---------------------------------- | ---------- | ----------- |
-| Phase 1 | Registry extraction + TS/Py rewire | —          | **NOW**     |
-| Phase 2 | Go SDK                             | Phase 1    | Next        |
-| Phase 3 | Rust SDK                           | Phase 1    | After Go    |
+| Phase 1 | Registry extraction + TS/Py rewire | —          | ✅ Done     |
+| Phase 2 | Go SDK                             | Phase 1    | ✅ Done     |
+| Phase 3 | Rust SDK                           | Phase 1    | ✅ Done     |
 | Phase 4 | Type codegen                       | Phase 1    | When needed |
 
 ---
 
 ## Risks & Mitigations
 
-| Risk                                    | Mitigation                                          |
-| --------------------------------------- | --------------------------------------------------- |
-| JSON loading adds startup latency       | Files are <5KB; negligible. Go/Rust embed at compile time. |
+| Risk                                    | Mitigation                                                                                                              |
+| --------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| JSON loading adds startup latency       | Files are <5KB; negligible. Go/Rust embed at compile time.                                                              |
 | Python package can't find registry path | Use `pathlib.Path(__file__).parent / "../../registry"` resolved at import time, or bundle JSON into the Python package. |
-| Registry JSON drifts from SDK code      | CI test: load JSON in each SDK's test suite, assert keys match expected set. |
-| New OpenRouter params need JSON update  | Single update to one JSON file vs. N language files. |
+| Registry JSON drifts from SDK code      | CI test: load JSON in each SDK's test suite, assert keys match expected set.                                            |
+| New OpenRouter params need JSON update  | Single update to one JSON file vs. N language files.                                                                    |

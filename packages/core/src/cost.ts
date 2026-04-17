@@ -3,8 +3,8 @@
  * Real-time cost estimation for OpenRouter models
  */
 
-import { CostEstimate, OpenRouterModel } from "./types";
 import costRegistry from "../../registry/cost.json";
+import { CostEstimate, OpenRouterModel } from "./types";
 
 /**
  * Calculate cost for a request
@@ -137,8 +137,16 @@ export function getPriceTier(
   const avgPrice = (promptPrice + completionPrice) / 2;
 
   const tiers = costRegistry.price_tiers;
-  if (tiers.cheap.max_avg_price !== null && avgPrice < tiers.cheap.max_avg_price) return "cheap";
-  if (tiers.moderate.max_avg_price !== null && avgPrice < tiers.moderate.max_avg_price) return "moderate";
+  if (
+    tiers.cheap.max_avg_price !== null &&
+    avgPrice < tiers.cheap.max_avg_price
+  )
+    return "cheap";
+  if (
+    tiers.moderate.max_avg_price !== null &&
+    avgPrice < tiers.moderate.max_avg_price
+  )
+    return "moderate";
   return "expensive";
 }
 

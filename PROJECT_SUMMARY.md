@@ -2,97 +2,129 @@
 
 ## 🎯 Project Overview
 
-**OpenRouter Auto** is a comprehensive SDK that enables developers to auto-configure and use any OpenRouter model with **zero setup**. It eliminates the need to hardcode model IDs, manually configure parameters, or maintain model lists.
+**OpenRouter Auto** is a comprehensive multi-language SDK that enables developers to auto-configure and use any OpenRouter model with **zero setup**. It eliminates the need to hardcode model IDs, manually configure parameters, or maintain model lists.
 
 ### Problem Solved
 
-| Before OpenRouter Auto  | With OpenRouter Auto                            |
-| ----------------------- | ----------------------------------------------- |
-| Hardcode model IDs      | Auto-fetch all 345+ models                      |
-| Manual parameter config | Dynamic forms from API                          |
-| No model validation     | Built-in testing before use                     |
-| Static pricing info     | Real-time cost estimation (incl. reasoning)     |
-| Basic chat only         | Streaming, reasoning, tools, vision, web search |
-| Framework-specific      | Works with any stack                            |
+| Before OpenRouter Auto  | With OpenRouter Auto                                        |
+| ----------------------- | ----------------------------------------------------------- |
+| Hardcode model IDs      | Auto-fetch all 345+ models                                  |
+| Manual parameter config | Dynamic forms from API                                      |
+| No model validation     | Built-in testing before use                                 |
+| Static pricing info     | Real-time cost estimation (incl. reasoning tokens)          |
+| Basic chat only         | Streaming, reasoning, tools, vision, web search             |
+| One language            | TypeScript · React · Python · Go · Rust                      |
+| Duplicated data files   | Single `registry/` JSON consumed by all five SDKs           |
 
 ## 📁 Project Structure
 
 ```
 openrouter-auto/
 ├── packages/
-│   ├── core/                    # TypeScript SDK
-│   │   ├── src/
-│   │   │   ├── sdk.ts          # Main SDK class
-│   │   │   ├── types.ts        # Type definitions
-│   │   │   ├── errors.ts       # Error handling
-│   │   │   ├── storage.ts      # Storage adapters
-│   │   │   ├── parameters.ts   # Parameter validation
-│   │   │   ├── cost.ts         # Cost calculation
-│   │   │   └── index.ts        # Exports
-│   │   ├── package.json
-│   │   └── tsconfig.json
+│   ├── registry/                ← Single source of truth (shared by all SDKs)
+│   │   ├── parameters.json      # Param definitions, ranges, defaults (13 params)
+│   │   ├── errors.json          # HTTP code map, messages, tips, retryable list
+│   │   ├── cost.json            # Price tier thresholds, token estimate ratio
+│   │   └── platform-params.json # Always-allowed request params (23 entries)
 │   │
-│   ├── react/                   # React components
+│   ├── core/                    # @openrouter-auto/core — TypeScript SDK
 │   │   ├── src/
-│   │   │   ├── context.tsx     # React context/provider
-│   │   │   ├── components/
-│   │   │   │   ├── ModelSelector.tsx      # Searchable model dropdown
-│   │   │   │   ├── ModelConfigPanel.tsx   # Parameter configuration
-│   │   │   │   ├── CostEstimator.tsx      # Real-time cost calc
-│   │   │   │   └── ErrorDisplay.tsx       # Error display with tips
-│   │   │   └── index.ts
-│   │   └── package.json
+│   │   │   ├── sdk.ts          # Main SDK class, StreamAccumulator
+│   │   │   ├── types.ts        # All interfaces (incl. tools, reasoning, multimodal)
+│   │   │   ├── errors.ts       # Error-code mapping (loads errors.json)
+│   │   │   ├── storage.ts      # MemoryStorage, LocalStorageAdapter, FileStorage
+│   │   │   ├── parameters.ts   # Validation, defaults (loads parameters.json)
+│   │   │   ├── cost.ts         # Cost breakdown (loads cost.json)
+│   │   │   └── index.ts        # Public exports
+│   │   └── __tests__/          # Jest unit tests — 40 tests
 │   │
-│   └── python/                  # Python SDK
-│       ├── openrouter_auto/
-│       │   ├── __init__.py
-│       │   ├── sdk.py          # Main SDK class
-│       │   ├── types.py        # Type definitions
-│       │   ├── errors.py       # Error handling
-│       │   ├── storage.py      # Storage adapters
-│       │   ├── parameters.py   # Parameter validation
-│       │   ├── cost.py         # Cost calculation
-│       │   └── cli.py          # CLI tool
-│       └── setup.py
+│   ├── react/                   # @openrouter-auto/react — React wrapper
+│   │   └── src/
+│   │       ├── context.tsx     # OpenRouterProvider + useOpenRouter hook
+│   │       └── components/
+│   │           ├── ModelSelector.tsx      # Searchable model dropdown
+│   │           ├── ModelConfigPanel.tsx   # Parameter configuration
+│   │           ├── CostEstimator.tsx      # Real-time cost calc
+│   │           └── ErrorDisplay.tsx       # Error display with tips
+│   │
+│   ├── python/                  # openrouter_auto — Python SDK
+│   │   ├── openrouter_auto/
+│   │   │   ├── sdk.py          # Main SDK class, StreamAccumulator
+│   │   │   ├── types.py        # Dataclasses (mirrors TS)
+│   │   │   ├── errors.py       # Error-code mapping (loads errors.json)
+│   │   │   ├── storage.py      # MemoryStorage, FileStorage
+│   │   │   ├── parameters.py   # Validation, defaults (loads parameters.json)
+│   │   │   ├── cost.py         # Cost breakdown (loads cost.json)
+│   │   │   └── cli.py          # CLI tool
+│   │   ├── tests/              # pytest unit tests — 42 tests
+│   │   ├── live_test.py        # Live E2E test (18 checks, real API)
+│   │   └── live_e2e_test.py    # Extended live test
+│   │
+│   ├── go/                      # Go SDK — net/http + go:embed registry
+│   │   ├── client.go           # NewClient, FetchModels, Chat, AddModel
+│   │   ├── types.go            # Go structs matching OpenRouter API
+│   │   ├── parameters.go       # Validation (go:embed parameters.json)
+│   │   ├── errors.go           # Error parsing (go:embed errors.json)
+│   │   ├── cost.go             # Cost calc (go:embed cost.json)
+│   │   ├── storage.go          # MemoryStorage, FileStorage
+│   │   └── client_test.go      # Tests — 13 tests, httptest mock
+│   │
+│   └── rust/                    # Rust SDK — reqwest + tokio + include_str! registry
+│       ├── Cargo.toml
+│       ├── src/
+│       │   ├── client.rs       # Client::new, fetch_models, chat, add_model
+│       │   ├── types.rs        # Serde structs
+│       │   ├── parameters.rs   # Validation (include_str! parameters.json)
+│       │   ├── errors.rs       # Error parsing (include_str! errors.json)
+│       │   ├── cost.rs         # Cost calc (include_str! cost.json)
+│       │   ├── storage.rs      # MemoryStorage, FileStorage
+│       │   └── lib.rs          # Re-exports
+│       └── tests/
+│           └── integration.rs  # Tests — 13 tests, wiremock
 │
 ├── examples/
-│   ├── react-basic.tsx         # React example
-│   └── python-basic.py         # Python example
-│
-├── README.md                   # Full documentation
-├── QUICKSTART.md              # Quick start guide
-├── LICENSE                    # MIT License
-└── package.json               # Root package.json
+│   ├── react-basic.tsx
+│   └── python-basic.py
+├── README.md
+├── QUICKSTART.md
+├── LICENSE
+└── package.json
 ```
 
 ## ✨ Key Features Implemented
 
+### 0. Registry — Single Source of Truth
+
+- `packages/registry/` holds 4 JSON files consumed by **all five SDKs**
+- **Zero data duplication** across languages: parameters, error codes, cost tiers, platform-allowed params
+- Go embeds via `go:embed`; Rust embeds via `include_str!`; TS imports via `resolveJsonModule`; Python via `json.load()`
+- Adding a new language SDK requires **zero registry changes**
+
 ### 1. Auto-Fetch Models
 
-- Fetches all 300+ models from OpenRouter API
+- Fetches all 345+ models from OpenRouter API
 - Caches locally for performance
 - Auto-refresh on configurable interval
-- Filter by price, modality, provider, etc.
+- Filter by price, modality, provider, context length, etc.
 
 ### 2. Auto-Configure Parameters
 
 - Dynamic parameter forms from `supported_parameters`
-- Automatic validation with min/max ranges
+- Automatic validation with min/max ranges (from `parameters.json`)
 - Default values per model
-- Type-safe parameter handling
+- `PLATFORM_PARAMS` whitelist bypasses model-specific validation
 
 ### 3. Model Testing
 
 - Built-in test on model add
 - Configurable test prompt
-- Success/failure tracking
-- Error reporting
+- Success/failure tracking with error reporting
 
 ### 4. Streaming with StreamAccumulator
 
 - Typed streaming chunks (`StreamChunk`)
-- `StreamAccumulator` class: accumulates `content`, `reasoning`, and `tool_calls` deltas
-- Works across all three runtimes (TS, React, Python)
+- `StreamAccumulator` accumulates `content`, `reasoning`, and `tool_calls` deltas
+- Works across TypeScript, React, and Python
 - Supports `stream_options: { include_usage: true }`
 
 ### 5. Reasoning Models (Phase 1)
@@ -113,54 +145,76 @@ openrouter-auto/
 
 - `createWebSearchTool(params?)` helper — returns `{ type: "openrouter:web_search" }` descriptor
 - `enableWebSearch(request, params?)` helper — returns patched request copy
-- Supports custom parameters (e.g. `max_results`)
-- `WebSearchParameters`, `WebSearchUserLocation`, `WebPlugin` types
+- Supports engine selection, `max_results`, domain allow/block lists, user location
+- `Annotation` and `UrlCitation` types for response citations
 
 ### 8. Multimodal / Vision (Phase 2)
 
-- `ContentPart` union type: `TextContentPart | ImageContentPart | InputAudioContentPart`
+- `ContentPart` union: `TextContentPart | ImageUrlContentPart | InputAudioContentPart`
 - `ChatMessage.content` accepts `string | ContentPart[] | null`
-- `Annotation` and `UrlCitation` types for web-search response annotations
+- Tested live with Claude vision (image URL input)
 
 ### 9. Provider Routing + Advanced Params (Phase 3)
 
-- `ProviderPreferences` type: `order`, `allow_fallbacks`, `require_parameters`, etc.
-- `ChatRequest` fields: `provider`, `models`, `route`, `plugins`, `metadata`, `trace`, `session_id`, `user`, `modalities`, `logprobs`, `top_logprobs`, `cache_control`, `service_tier`
-- Platform-level params bypass model `supported_parameters` validation (via `PLATFORM_PARAMS` whitelist)
+- `ProviderPreferences` type: `order`, `allow_fallbacks`, `require_parameters`, `sort`, `quantizations`, etc.
+- Full `ChatRequest` coverage: `provider`, `models`, `route`, `plugins`, `metadata`, `trace`, `session_id`, `user`, `modalities`, `logprobs`, `top_logprobs`, `cache_control`, `service_tier`, `max_completion_tokens`
 
-### 10. Cost Estimation
+### 10. Streaming Improvements (Phase 4)
+
+- `StreamChunk` typed struct (TS + Python)
+- `stream_options: { include_usage: true }` for token counts in stream
+- `StreamAccumulator.toResponse()` builds a complete `ChatResponse` from chunks
+
+### 11. Go SDK
+
+- `packages/go/` — ~400 LOC, stdlib `net/http`, zero external HTTP deps
+- Registry JSON compiled into binary via `go:embed`
+- `NewClient`, `FetchModels`, `Chat`, `AddModel`, `CheckModelAvailability`
+- `MemoryStorage` + `FileStorage` (path-traversal protected)
+- 13 tests via `httptest` mock server
+
+### 12. Rust SDK
+
+- `packages/rust/` — ~500 LOC, `reqwest` + `tokio` async runtime
+- Registry JSON embedded at compile time via `include_str!`
+- All types derive `Serialize`/`Deserialize` via serde
+- `OraError` implements `std::error::Error`
+- `MemoryStorage` + `FileStorage` (path-traversal protected)
+- 13 tests via `wiremock` mock server
+
+### 13. Cost Estimation
 
 - Real-time pricing from API
 - Token estimation from text
 - Cost breakdown: prompt / completion / reasoning
-- Monthly estimates
+- Price tier classification: free / cheap / moderate / expensive (from `cost.json`)
 
-### 11. Error Handling
+### 14. Error Handling
 
-- Smart error code mapping
-- User-friendly messages
-- Retry suggestions
-- Helpful tips per error type
+- Smart HTTP → error-code mapping (from `errors.json`)
+- User-friendly messages + per-code tips
+- Retryable flag on all error codes
+- Body-level error detection (credit, rate-limit, model-not-found keywords)
 
-### 13. Storage Options
+### 15. Storage Options
 
-- **Memory**: No persistence (default)
-- **localStorage**: Browser persistence
-- **File**: Node.js/Python config file
+- **Memory**: No persistence (default, all 5 SDKs)
+- **localStorage**: Browser persistence (TS/React only)
+- **File**: Node.js / Python / Go / Rust config file (`.openrouter-auto.json`)
 
-### 14. React Components
+### 16. React Components
 
 - `ModelSelector`: Searchable dropdown
-- `ModelConfigPanel`: Parameter configuration
-- `CostEstimator`: Real-time cost calc
+- `ModelConfigPanel`: Parameter configuration form
+- `CostEstimator`: Real-time cost breakdown
 - `ErrorDisplay`: Error display with tips
 
-### 12. Python SDK
+### 17. Python SDK
 
-- Full async/await support
-- Streaming responses via `stream_chat()` async generator
+- Full async/await with `httpx`
+- `stream_chat()` async generator
 - `StreamAccumulator`, `create_web_search_tool()`, `enable_web_search()` helpers
-- CLI tool: `openrouter-auto setup|models|add|test|chat`
+- CLI: `openrouter-auto setup|models|add|test|chat`
 - 1-to-1 API parity with TypeScript core
 
 ## 🔧 Technical Implementation
@@ -262,15 +316,14 @@ interface OpenRouterModel {
 
 ## 🚀 Usage Examples
 
-### JavaScript/TypeScript
+### TypeScript
 
 ```typescript
-import { OpenRouterAuto } from "openrouter-auto";
+import { OpenRouterAuto } from "@openrouter-auto/core";
 
-const or = new OpenRouterAuto({ apiKey: "..." });
+const or = new OpenRouterAuto({ apiKey: process.env.OPENROUTER_API_KEY! });
 await or.initialize();
 
-// Add and use model
 await or.addModel("anthropic/claude-3.5-sonnet", { temperature: 0.7 });
 const response = await or.chat({
   model: "anthropic/claude-3.5-sonnet",
@@ -281,16 +334,12 @@ const response = await or.chat({
 ### React
 
 ```tsx
-import {
-  OpenRouterProvider,
-  ModelSelector,
-  useOpenRouter,
-} from "openrouter-auto/react";
+import { OpenRouterProvider, ModelSelector } from "@openrouter-auto/react";
 
 function App() {
   return (
-    <OpenRouterProvider apiKey="...">
-      <ModelSelector onChange={(id, model) => console.log(id)} />
+    <OpenRouterProvider apiKey={process.env.REACT_APP_OPENROUTER_API_KEY!}>
+      <ModelSelector onChange={(id) => console.log(id)} />
     </OpenRouterProvider>
   );
 }
@@ -299,71 +348,107 @@ function App() {
 ### Python
 
 ```python
-from openrouter_auto import create_openrouter_auto
+from openrouter_auto.sdk import OpenRouterAuto
+from openrouter_auto.types import ChatRequest, ChatMessage
 
-or_auto = create_openrouter_auto({"api_key": "..."})
-await or_auto.initialize()
+sdk = OpenRouterAuto({"api_key": "your-api-key"})
+await sdk.fetch_models()
 
-await or_auto.add_model("anthropic/claude-3.5-sonnet")
-response = await or_auto.chat({
-    "model": "anthropic/claude-3.5-sonnet",
-    "messages": [{"role": "user", "content": "Hello!"}],
+resp = await sdk.chat(ChatRequest(
+    model="anthropic/claude-3.5-sonnet",
+    messages=[ChatMessage(role="user", content="Hello!")],
+))
+print(resp.choices[0]["message"]["content"])
+```
+
+### Go
+
+```go
+client, _ := ora.NewClient(ora.Options{APIKey: os.Getenv("OPENROUTER_API_KEY")})
+client.FetchModels()
+resp, _ := client.Chat(ora.ChatRequest{
+    Model:    "anthropic/claude-3.5-sonnet",
+    Messages: []ora.ChatMessage{{Role: "user", Content: "Hello!"}},
 })
+fmt.Println(resp.Content())
+```
+
+### Rust
+
+```rust
+let client = Client::new(Options { api_key: api_key, ..Default::default() })?;
+client.fetch_models().await?;
+let resp = client.chat(&ChatRequest::new(
+    "anthropic/claude-3.5-sonnet",
+    vec![ChatMessage::new("user", "Hello!")],
+)).await?;
+println!("{}", resp.content());
 ```
 
 ### CLI
 
 ```bash
-# Setup
-openrouter-auto setup
-
-# List models
+export OPENROUTER_API_KEY=your_key
 openrouter-auto models --free
-
-# Add model
 openrouter-auto add anthropic/claude-3.5-sonnet
-
-# Chat
 openrouter-auto chat anthropic/claude-3.5-sonnet "Hello!"
 ```
 
 ## 📦 Package Distribution
 
-### npm (JavaScript/TypeScript/React)
+### npm (TypeScript / React)
 
 ```json
-{
-  "name": "openrouter-auto",
-  "version": "1.0.0",
-  "main": "dist/index.js",
-  "types": "dist/index.d.ts"
-}
+{ "name": "@openrouter-auto/core", "version": "1.0.0" }
+{ "name": "@openrouter-auto/react", "version": "1.0.0" }
 ```
 
 ### PyPI (Python)
 
-```python
-# setup.py
-name="openrouter-auto"
-version="1.0.0"
 ```
+openrouter-auto == 1.0.0
+```
+
+### Go module
+
+```
+github.com/faraz152/openrouter-auto-connect/go
+```
+
+### Rust crate
+
+```toml
+openrouter-auto = "0.1.0"
+```
+
+## � Test Coverage
+
+| SDK        | Test runner   | Tests | What’s covered                                        |
+| ---------- | ------------- | ----- | ----------------------------------------------------- |
+| TypeScript | Jest          | 40    | cost, errors, parameters, storage                     |
+| Python     | pytest        | 42    | cost, errors, parameters, storage                     |
+| Go         | `go test`     | 13    | client, models, chat, cost, storage, validation       |
+| Rust       | `cargo test`  | 13    | client, models, chat, cost, storage, validation       |
+| Live E2E   | manual script | 18    | fetch, cost, validation, chat, tools, search, vision, routing, stream |
 
 ## 🔮 Future Enhancements
 
 1. **Responses API** — OpenRouter `/api/v1/responses` endpoint (stateful sessions)
-2. **Vue.js / Svelte Components** — Add framework wrappers
-3. **Batch Requests** — Send multiple requests efficiently
-4. **Caching Layer** — Redis / edge caching for large deployments
+2. **Type Codegen** — JSON Schema → auto-generate structs for all languages (when ≥4 SDKs)
+3. **Vue.js / Svelte Components** — Add framework wrappers
+4. **Batch Requests** — Send multiple requests efficiently
 5. **Web Dashboard** — Standalone management UI
 
 ## 📈 Success Metrics
 
-- **Developer Experience**: Zero config, one-line setup
+- **Developer Experience**: Zero config, one-line setup across 5 languages
 - **Model Coverage**: All 345+ OpenRouter models (live-verified)
-- **Error Reduction**: Smart validation, PLATFORM_PARAMS whitelist, and helpful errors
+- **Data Parity**: Single `registry/` JSON — zero duplication across TS, Python, Go, Rust
+- **Error Reduction**: Smart validation, `PLATFORM_PARAMS` whitelist, and helpful per-code tips
 - **Cost Visibility**: Real-time cost estimation including reasoning tokens
-- **Framework Support**: JavaScript, TypeScript, React, Python
-- **Feature Coverage**: Chat, streaming, reasoning, tool calling, web search, vision, provider routing, logprobs
+- **Language Support**: TypeScript, React, Python, Go, Rust
+- **Feature Coverage**: Chat, streaming, reasoning, tool calling, web search, vision, provider routing, logprobs, advanced params
+- **Test Coverage**: 108 unit/integration tests + 18-check live E2E suite
 
 ## 🤝 Contributing
 

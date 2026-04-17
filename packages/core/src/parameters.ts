@@ -3,16 +3,20 @@
  * Dynamic parameter validation and configuration
  */
 
-import { OpenRouterModel, ParameterDefinition } from "./types";
 import registryParams from "../../registry/parameters.json";
 import platformParamsList from "../../registry/platform-params.json";
+import { OpenRouterModel, ParameterDefinition } from "./types";
 
 // Build DEFAULT_PARAMETERS from registry JSON
 export const DEFAULT_PARAMETERS: Record<string, ParameterDefinition> = {};
 for (const [name, def] of Object.entries(
   registryParams as Record<string, Record<string, any>>,
 )) {
-  DEFAULT_PARAMETERS[name] = { name, required: false, ...def } as ParameterDefinition;
+  DEFAULT_PARAMETERS[name] = {
+    name,
+    required: false,
+    ...def,
+  } as ParameterDefinition;
 }
 
 /**
