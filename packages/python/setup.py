@@ -11,11 +11,15 @@ with open("README.md", "r", encoding="utf-8") as fh:
 setup(
     name="openrouter-auto",
     version="1.0.0",
-    author="OpenRouter Auto Team",
+    author="faraz152",
     description="Auto-configure and use any OpenRouter model with zero setup",
     long_description=long_description,
     long_description_content_type="text/markdown",
-    url="https://github.com/openrouter-auto/openrouter-auto",
+    url="https://github.com/faraz152/openrouter-auto-connect",
+    project_urls={
+        "Bug Tracker": "https://github.com/faraz152/openrouter-auto-connect/issues",
+        "Source Code": "https://github.com/faraz152/openrouter-auto-connect/tree/main/packages/python",
+    },
     packages=find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",

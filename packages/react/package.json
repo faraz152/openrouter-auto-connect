@@ -34,7 +34,20 @@
     "ai",
     "llm",
     "react",
-    "components"
+    "components",
+    "sdk",
+    "openai",
+    "anthropic"
   ],
-  "license": "MIT"
+  "author": "faraz152",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/faraz152/openrouter-auto-connect.git",
+    "directory": "packages/react"
+  },
+  "homepage": "https://github.com/faraz152/openrouter-auto-connect#readme",
+  "publishConfig": {
+    "access": "public"
+  }
 }

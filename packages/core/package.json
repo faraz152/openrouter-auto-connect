@@ -29,7 +29,21 @@
     "openrouter",
     "ai",
     "llm",
-    "models"
+    "models",
+    "sdk",
+    "openai",
+    "anthropic",
+    "auto-config"
   ],
-  "license": "MIT"
+  "author": "faraz152",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/faraz152/openrouter-auto-connect.git",
+    "directory": "packages/core"
+  },
+  "homepage": "https://github.com/faraz152/openrouter-auto-connect#readme",
+  "publishConfig": {
+    "access": "public"
+  }
 }
