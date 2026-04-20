@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"strings"
 	"sync"
 )
 
@@ -95,7 +96,7 @@ func isUnder(path, base string) bool {
 		return false
 	}
 	// If rel starts with ".." the path is outside base.
-	return len(rel) >= 2 && rel[:2] != ".." || rel == "."
+	return rel == "." || (!strings.HasPrefix(rel, ".."+string(filepath.Separator)) && rel != "..")
 }
 
 func (f *FileStorage) Get(key string) (any, bool) {

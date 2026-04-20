@@ -6,6 +6,7 @@ Basic usage of OpenRouter Auto with Python
 import asyncio
 import os
 from openrouter_auto import create_openrouter_auto
+from openrouter_auto.types import ChatRequest, ChatMessage, ModelFilterOptions
 
 
 async def main():
@@ -32,7 +33,7 @@ async def main():
     print(f"✅ Loaded {len(models)} models")
 
     # Show some free models
-    free_models = or_auto.filter_models({"free_only": True})
+    free_models = or_auto.filter_models(ModelFilterOptions(free_only=True))
     print(f"\n🆓 Free models available: {len(free_models)}")
     for model in free_models[:5]:
         print(f"  - {model.name} ({model.id})")
@@ -66,12 +67,12 @@ async def main():
     # Chat with the model
     print(f"\n💬 Sending message...")
     try:
-        response = await or_auto.chat({
-            "model": model_id,
-            "messages": [
-                {"role": "user", "content": "What is the capital of France?"}
+        response = await or_auto.chat(ChatRequest(
+            model=model_id,
+            messages=[
+                ChatMessage(role="user", content="What is the capital of France?")
             ],
-        })
+        ))
         
         print(f"✅ Response received!")
         print(f"   Model: {response.model}")

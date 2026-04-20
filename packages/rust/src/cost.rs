@@ -56,6 +56,7 @@ pub fn calculate_cost(model: &Model, prompt_tokens: i64, completion_tokens: i64)
     CostEstimate {
         prompt_cost,
         completion_cost,
+        reasoning_cost: 0.0,
         total_cost: prompt_cost + completion_cost,
         currency: "USD".to_string(),
     }

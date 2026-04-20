@@ -62,6 +62,7 @@ func CalculateCost(model Model, promptTokens, completionTokens int) CostEstimate
 	return CostEstimate{
 		PromptCost:     promptCost,
 		CompletionCost: completionCost,
+		ReasoningCost:  0,
 		TotalCost:      promptCost + completionCost,
 		Currency:       "USD",
 	}

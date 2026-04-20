@@ -14,14 +14,14 @@ A **multi-language monorepo SDK** that automatically fetches, validates, and man
 
 ## What is this?
 
-| Before                  | After                                                        |
-| ----------------------- | ------------------------------------------------------------ |
-| Hardcode model IDs      | Auto-fetch all 345+ models                                   |
-| Manual parameter config | Dynamic validation from model capabilities                   |
-| No cost preview         | Real-time cost estimation (incl. reasoning tokens)           |
-| Basic chat only         | Streaming, reasoning, tools, vision, web search, multimodal  |
-| One language            | TypeScript · React · Python · Go · Rust                      |
-| Duplicated data files   | Single `registry/` JSON consumed by all SDKs                 |
+| Before                  | After                                                       |
+| ----------------------- | ----------------------------------------------------------- |
+| Hardcode model IDs      | Auto-fetch all 345+ models                                  |
+| Manual parameter config | Dynamic validation from model capabilities                  |
+| No cost preview         | Real-time cost estimation (incl. reasoning tokens)          |
+| Basic chat only         | Streaming, reasoning, tools, vision, web search, multimodal |
+| One language            | TypeScript · React · Python · Go · Rust                     |
+| Duplicated data files   | Single `registry/` JSON consumed by all SDKs                |
 
 ---
 
@@ -219,6 +219,7 @@ function MyApp() {
 ```python
 import asyncio
 from openrouter_auto import create_openrouter_auto
+from openrouter_auto.types import ChatRequest, ChatMessage
 
 async def main():
     or_auto = create_openrouter_auto({
@@ -234,10 +235,10 @@ async def main():
         parameters={"temperature": 0.7, "max_tokens": 1000},
     )
 
-    response = await or_auto.chat({
-        "model": "anthropic/claude-3.5-sonnet",
-        "messages": [{"role": "user", "content": "Hello!"}],
-    })
+    response = await or_auto.chat(ChatRequest(
+        model="anthropic/claude-3.5-sonnet",
+        messages=[ChatMessage(role="user", content="Hello!")],
+    ))
     print(response.choices[0]["message"]["content"])
 
 asyncio.run(main())

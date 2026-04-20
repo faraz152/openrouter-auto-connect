@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Optional
 
 from .sdk import create_openrouter_auto
+from .types import ChatRequest, ChatMessage, ModelFilterOptions
 
 
 def get_config_path() -> Path:
@@ -122,15 +123,11 @@ async def cmd_models(args) -> None:
         await or_auto.initialize()
 
         # Filter models
-        filter_options = {}
-        if args.free:
-            filter_options["free_only"] = True
-        if args.provider:
-            filter_options["provider"] = args.provider
-        if args.search:
-            filter_options["search"] = args.search
-
-        models = or_auto.filter_models(filter_options)
+        models = or_auto.filter_models(ModelFilterOptions(
+            free_only=args.free or None,
+            provider=getattr(args, 'provider', None),
+            search=getattr(args, 'search', None),
+        ))
 
         print(f"Found {len(models)} models:\n")
 
@@ -252,22 +249,21 @@ async def cmd_chat(args) -> None:
         print(f"You: {args.message}\n")
         print("Assistant: ", end="", flush=True)
 
+        req = ChatRequest(
+            model=args.model,
+            messages=[ChatMessage(role="user", content=args.message)],
+        )
+
         if args.stream:
             # Stream response
-            async for chunk in or_auto.stream_chat({
-                "model": args.model,
-                "messages": [{"role": "user", "content": args.message}],
-            }):
+            async for chunk in or_auto.stream_chat(req):
                 content = chunk.get("choices", [{}])[0].get("delta", {}).get("content", "")
                 if content:
                     print(content, end="", flush=True)
             print()
         else:
             # Regular response
-            response = await or_auto.chat({
-                "model": args.model,
-                "messages": [{"role": "user", "content": args.message}],
-            })
+            response = await or_auto.chat(req)
             print(response.choices[0]["message"]["content"])
 
         await or_auto.close()

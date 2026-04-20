@@ -283,6 +283,8 @@ pub struct ModelConfig {
 pub struct CostEstimate {
     pub prompt_cost: f64,
     pub completion_cost: f64,
+    #[serde(default)]
+    pub reasoning_cost: f64,
     pub total_cost: f64,
     pub currency: String,
 }

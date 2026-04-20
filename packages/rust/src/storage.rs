@@ -100,6 +100,14 @@ impl FileStorage {
                 let _ = std::fs::create_dir_all(parent);
             }
             let _ = std::fs::write(&self.path, bytes);
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::PermissionsExt;
+                let _ = std::fs::set_permissions(
+                    &self.path,
+                    std::fs::Permissions::from_mode(0o600),
+                );
+            }
         }
     }
 }

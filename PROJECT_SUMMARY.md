@@ -6,15 +6,15 @@
 
 ### Problem Solved
 
-| Before OpenRouter Auto  | With OpenRouter Auto                                        |
-| ----------------------- | ----------------------------------------------------------- |
-| Hardcode model IDs      | Auto-fetch all 345+ models                                  |
-| Manual parameter config | Dynamic forms from API                                      |
-| No model validation     | Built-in testing before use                                 |
-| Static pricing info     | Real-time cost estimation (incl. reasoning tokens)          |
-| Basic chat only         | Streaming, reasoning, tools, vision, web search             |
-| One language            | TypeScript · React · Python · Go · Rust                      |
-| Duplicated data files   | Single `registry/` JSON consumed by all five SDKs           |
+| Before OpenRouter Auto  | With OpenRouter Auto                               |
+| ----------------------- | -------------------------------------------------- |
+| Hardcode model IDs      | Auto-fetch all 345+ models                         |
+| Manual parameter config | Dynamic forms from API                             |
+| No model validation     | Built-in testing before use                        |
+| Static pricing info     | Real-time cost estimation (incl. reasoning tokens) |
+| Basic chat only         | Streaming, reasoning, tools, vision, web search    |
+| One language            | TypeScript · React · Python · Go · Rust            |
+| Duplicated data files   | Single `registry/` JSON consumed by all five SDKs  |
 
 ## 📁 Project Structure
 
@@ -423,12 +423,12 @@ openrouter-auto = "0.1.0"
 
 ## � Test Coverage
 
-| SDK        | Test runner   | Tests | What’s covered                                        |
-| ---------- | ------------- | ----- | ----------------------------------------------------- |
-| TypeScript | Jest          | 40    | cost, errors, parameters, storage                     |
-| Python     | pytest        | 42    | cost, errors, parameters, storage                     |
-| Go         | `go test`     | 13    | client, models, chat, cost, storage, validation       |
-| Rust       | `cargo test`  | 13    | client, models, chat, cost, storage, validation       |
+| SDK        | Test runner   | Tests | What’s covered                                                        |
+| ---------- | ------------- | ----- | --------------------------------------------------------------------- |
+| TypeScript | Jest          | 40    | cost, errors, parameters, storage                                     |
+| Python     | pytest        | 42    | cost, errors, parameters, storage                                     |
+| Go         | `go test`     | 13    | client, models, chat, cost, storage, validation                       |
+| Rust       | `cargo test`  | 13    | client, models, chat, cost, storage, validation                       |
 | Live E2E   | manual script | 18    | fetch, cost, validation, chat, tools, search, vision, routing, stream |
 
 ## 🔮 Future Enhancements

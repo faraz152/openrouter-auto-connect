@@ -147,6 +147,12 @@ func (c *Client) GetModel(id string) (Model, bool) {
 
 // AddModel creates a ModelConfig entry, optionally verifying connectivity first.
 func (c *Client) AddModel(modelID string, params map[string]any, skipTest bool) (*ModelConfig, error) {
+	// Validate parameters against the model definition, if the model is known.
+	if m, ok := c.GetModel(modelID); ok {
+		if errs := ValidateParameters(m, params); len(errs) > 0 {
+			return nil, &ORAError{Code: ErrInvalidParameters, Message: fmt.Sprintf("invalid parameters: %v", errs)}
+		}
+	}
 	cfg := ModelConfig{
 		ModelID:    modelID,
 		Parameters: params,

@@ -34,8 +34,6 @@ setup(
     python_requires=">=3.8",
     install_requires=[
         "httpx>=0.24.0",
-        "pydantic>=2.0.0",
-        "aiofiles>=23.0.0",
     ],
     extras_require={
         "dev": [

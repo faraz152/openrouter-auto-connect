@@ -99,7 +99,11 @@ println!("{}", resp.content());
 ## 🎨 React Quick Start
 
 ```tsx
-import { OpenRouterProvider, ModelSelector, useOpenRouter } from "@openrouter-auto/react";
+import {
+  OpenRouterProvider,
+  ModelSelector,
+  useOpenRouter,
+} from "@openrouter-auto/react";
 
 function App() {
   return (
@@ -117,10 +121,16 @@ function MyComponent() {
     <div>
       {/* Auto-fetches all 345+ models */}
       <ModelSelector value={model} onChange={setModel} />
-      <button onClick={async () => {
-        const resp = await chat({ model, messages: [{ role: "user", content: "Hello!" }] });
-        console.log(resp);
-      }}>Send</button>
+      <button
+        onClick={async () => {
+          const resp = await chat({
+            model,
+            messages: [{ role: "user", content: "Hello!" }],
+          });
+          console.log(resp);
+        }}>
+        Send
+      </button>
     </div>
   );
 }
@@ -150,9 +160,9 @@ openrouter-auto chat anthropic/claude-3.5-sonnet "Tell me a story" --stream
 
 ```typescript
 const models = or.getModels(); // 345+ models
-const free  = or.filterModels({ freeOnly: true });
+const free = or.filterModels({ freeOnly: true });
 const cheap = or.filterModels({ maxPrice: 0.001, provider: "openai" });
-const big   = or.filterModels({ minContextLength: 100000 });
+const big = or.filterModels({ minContextLength: 100000 });
 ```
 
 ```python
@@ -277,7 +287,7 @@ fmt.Printf("$%.6f\n", est.TotalCost)
 try {
   await or.chat({ model: "bad-model", messages: [] });
 } catch (error) {
-  console.log(error.code);      // 'MODEL_NOT_FOUND'
+  console.log(error.code); // 'MODEL_NOT_FOUND'
   console.log(error.retryable); // false
 }
 ```
@@ -300,7 +310,11 @@ new OpenRouterAuto({ apiKey: "...", storageType: "memory" });
 new OpenRouterAuto({ apiKey: "...", storageType: "localStorage" });
 
 // Config file (Node.js / Python)
-new OpenRouterAuto({ apiKey: "...", storageType: "file", configPath: "./.openrouter-auto.json" });
+new OpenRouterAuto({
+  apiKey: "...",
+  storageType: "file",
+  configPath: "./.openrouter-auto.json",
+});
 ```
 
 ### Running Tests (all SDKs)
@@ -328,10 +342,10 @@ python live_test.py
 ```typescript
 new OpenRouterAuto({
   apiKey: "your-api-key",
-  storageType: "file",             // "memory" | "localStorage" | "file"
+  storageType: "file", // "memory" | "localStorage" | "file"
   configPath: "./.openrouter-auto.json",
   autoFetch: true,
-  fetchInterval: 3600000,          // ms
+  fetchInterval: 3600000, // ms
   cacheDuration: 3600000,
   enableTesting: true,
   onError: (err) => console.error(err),
