@@ -28,12 +28,16 @@
     "UNKNOWN": "An unknown error occurred. Please try again."
   },
   "tips": {
+    "INVALID_API_KEY": "Double-check your OpenRouter API key. You can find it at https://openrouter.ai/keys.",
     "RATE_LIMITED": "Wait a few seconds before retrying.",
     "INSUFFICIENT_CREDITS": "Visit https://openrouter.ai/credits to add more credits.",
     "MODEL_NOT_FOUND": "Try refreshing the model list to get the latest models.",
     "MODEL_UNAVAILABLE": "Free models are often intermittently unavailable. Use getBestFreeModel() to find a working one, or skip the test when adding.",
     "PROVIDER_ERROR": "This model may be temporarily unavailable. Try another model.",
-    "INVALID_PARAMETERS": "Check that your parameters are within the model's supported range."
+    "INVALID_PARAMETERS": "Check that your parameters are within the model's supported range.",
+    "NETWORK_ERROR": "Check your internet connection and try again.",
+    "TIMEOUT": "The request timed out. Try again or use a different model.",
+    "UNKNOWN": "An unexpected error occurred. Please try again."
   },
   "retryable": [
     "RATE_LIMITED",

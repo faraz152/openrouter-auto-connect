@@ -6,6 +6,10 @@
 import { OpenRouterError, isRetryableError } from "@openrouter-auto/core";
 import React from "react";
 import { useOpenRouter } from "../context";
+import errorsRegistry from "../../../../registry/errors.json";
+
+// Tips sourced from the shared registry — no duplication with other SDKs.
+const ERROR_TIPS: Record<string, string> = errorsRegistry.tips as Record<string, string>;
 
 // Styles
 const styles: Record<string, React.CSSProperties> = {
@@ -88,25 +92,6 @@ const styles: Record<string, React.CSSProperties> = {
     marginTop: "8px",
     display: "inline-block",
   },
-};
-
-// Error tips
-const ERROR_TIPS: Record<string, string> = {
-  INVALID_API_KEY:
-    "Double-check your OpenRouter API key. You can find it at https://openrouter.ai/keys",
-  RATE_LIMITED:
-    "Wait a few seconds before retrying, or consider upgrading your plan.",
-  MODEL_NOT_FOUND:
-    "The model may have been removed. Try refreshing the model list.",
-  INVALID_PARAMETERS:
-    "Check that your parameters are within the supported range for this model.",
-  INSUFFICIENT_CREDITS:
-    "Visit https://openrouter.ai/credits to add more credits to your account.",
-  PROVIDER_ERROR:
-    "The model provider is experiencing issues. Try a different model or wait.",
-  NETWORK_ERROR: "Check your internet connection and try again.",
-  TIMEOUT: "The request timed out. Try again or use a different model.",
-  UNKNOWN: "An unexpected error occurred. Please try again.",
 };
 
 // Props interface
