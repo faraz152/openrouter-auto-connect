@@ -2,6 +2,9 @@
 
 **Use any AI model through one SDK. TypeScript · React · Python · Go · Rust.**
 
+[![npm @openrouter-auto/core](https://img.shields.io/npm/v/%40openrouter-auto%2Fcore?label=%40openrouter-auto%2Fcore&color=cb3837&logo=npm)](https://www.npmjs.com/package/@openrouter-auto/core)
+[![npm @openrouter-auto/react](https://img.shields.io/npm/v/%40openrouter-auto%2Freact?label=%40openrouter-auto%2Freact&color=cb3837&logo=npm)](https://www.npmjs.com/package/@openrouter-auto/react)
+[![PyPI openrouter-auto](https://img.shields.io/pypi/v/openrouter-auto?label=openrouter-auto&color=3775a9&logo=pypi&logoColor=white)](https://pypi.org/project/openrouter-auto/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.x-blue.svg)](https://www.typescriptlang.org/)
 [![Python](https://img.shields.io/badge/Python-3.8%2B-blue.svg)](https://www.python.org/)
@@ -51,16 +54,24 @@ npm install @openrouter-auto/core
 npm install @openrouter-auto/react
 ```
 
+> Published on npm: [@openrouter-auto/core](https://www.npmjs.com/package/@openrouter-auto/core) · [@openrouter-auto/react](https://www.npmjs.com/package/@openrouter-auto/react)
+
 ### Python
 
 ```bash
 pip install openrouter-auto
 ```
 
+> Published on PyPI: [openrouter-auto](https://pypi.org/project/openrouter-auto/)
+
 ### Go
 
 ```go
 import ora "github.com/faraz152/openrouter-auto-connect/go"
+```
+
+```bash
+go get github.com/faraz152/openrouter-auto-connect/go@v1.0.0
 ```
 
 ### Rust
