@@ -30,14 +30,14 @@
 
 ## Why OpenRouter Auto?
 
-| Without this SDK | With OpenRouter Auto |
-| --- | --- |
-| Hardcode model IDs | Auto-fetch all 345+ models |
-| Manual parameter config | Validation from model capabilities |
-| No cost preview | Real-time cost estimation |
-| Basic chat only | Streaming, reasoning, tools, vision, web search |
-| One language | TypeScript · React · Python · Go · Rust |
-| Duplicated config | Single `registry/` JSON — zero drift |
+| Without this SDK        | With OpenRouter Auto                            |
+| ----------------------- | ----------------------------------------------- |
+| Hardcode model IDs      | Auto-fetch all 345+ models                      |
+| Manual parameter config | Validation from model capabilities              |
+| No cost preview         | Real-time cost estimation                       |
+| Basic chat only         | Streaming, reasoning, tools, vision, web search |
+| One language            | TypeScript · React · Python · Go · Rust         |
+| Duplicated config       | Single `registry/` JSON — zero drift            |
 
 ---
 
@@ -136,7 +136,11 @@ println!("{}", resp.content());
 **React:**
 
 ```tsx
-import { OpenRouterProvider, ModelSelector, useOpenRouter } from "@openrouter-auto/react";
+import {
+  OpenRouterProvider,
+  ModelSelector,
+  useOpenRouter,
+} from "@openrouter-auto/react";
 
 function App() {
   return (
@@ -153,12 +157,40 @@ function Chat() {
   return (
     <div>
       <ModelSelector value={model} onChange={setModel} />
-      <button onClick={() => chat({ model, messages: [{ role: "user", content: "Hello!" }] })}>
+      <button
+        onClick={() =>
+          chat({ model, messages: [{ role: "user", content: "Hello!" }] })
+        }>
         Send
       </button>
     </div>
   );
 }
+```
+
+---
+
+## Python CLI
+
+The Python package includes a command-line tool for quick model management.
+
+| Command                                          | Description              |
+| ------------------------------------------------ | ------------------------ |
+| `openrouter-auto setup`                          | One-time API key setup   |
+| `openrouter-auto models`                         | List all 345+ models     |
+| `openrouter-auto models --free`                  | List free models only    |
+| `openrouter-auto add <model>`                    | Add and validate a model |
+| `openrouter-auto add <model> --temperature 0.7`  | Add with parameters      |
+| `openrouter-auto test <model>`                   | Test a saved model       |
+| `openrouter-auto chat <model> "prompt"`          | Send a chat message      |
+| `openrouter-auto chat <model> "prompt" --stream` | Stream a response        |
+
+```bash
+export OPENROUTER_API_KEY=sk-or-v1-...
+
+openrouter-auto models --free
+openrouter-auto add anthropic/claude-3.5-sonnet --temperature 0.7
+openrouter-auto chat anthropic/claude-3.5-sonnet "Hello!"
 ```
 
 ---
@@ -169,38 +201,38 @@ All five SDKs expose the same core methods. Names follow each language's convent
 
 ### Core Methods
 
-| Method | TypeScript | Python | Go | Rust | Description |
-| --- | --- | --- | --- | --- | --- |
-| **Initialize** | `initialize()` | `fetch_models()` | `FetchModels()` | `fetch_models()` | Fetch all 345+ models from OpenRouter |
-| **Chat** | `chat(req)` | `chat(req)` | `Chat(req)` | `chat(&req)` | Send a chat completion request |
-| **Stream** | `streamChat(req)` | `stream_chat(req)` | `StreamChat(req)` | `stream_chat(&req)` | Stream a chat response (SSE) |
-| **Add Model** | `addModel(id, params)` | `add_model(id, params)` | `AddModel(id, params)` | `add_model(id, params)` | Save a model config with validation |
-| **Get Models** | `getModels()` | `get_models()` | `GetModels()` | `get_models()` | Return cached model list |
-| **Filter** | `filterModels(opts)` | `filter_models(opts)` | `FilterModels(opts)` | `filter_models(&opts)` | Filter by price, provider, context, etc. |
-| **Cost** | `calculateCost(...)` | `calculate_cost(...)` | `CalculateCost(...)` | `calculate_cost(...)` | Estimate cost for a given token count |
-| **Events** | `on(event, fn)` | `on(event, fn)` | `On(event, fn)` | `on(event, fn)` | Subscribe to SDK events |
+| Method         | TypeScript             | Python                  | Go                     | Rust                    | Description                              |
+| -------------- | ---------------------- | ----------------------- | ---------------------- | ----------------------- | ---------------------------------------- |
+| **Initialize** | `initialize()`         | `fetch_models()`        | `FetchModels()`        | `fetch_models()`        | Fetch all 345+ models from OpenRouter    |
+| **Chat**       | `chat(req)`            | `chat(req)`             | `Chat(req)`            | `chat(&req)`            | Send a chat completion request           |
+| **Stream**     | `streamChat(req)`      | `stream_chat(req)`      | `StreamChat(req)`      | `stream_chat(&req)`     | Stream a chat response (SSE)             |
+| **Add Model**  | `addModel(id, params)` | `add_model(id, params)` | `AddModel(id, params)` | `add_model(id, params)` | Save a model config with validation      |
+| **Get Models** | `getModels()`          | `get_models()`          | `GetModels()`          | `get_models()`          | Return cached model list                 |
+| **Filter**     | `filterModels(opts)`   | `filter_models(opts)`   | `FilterModels(opts)`   | `filter_models(&opts)`  | Filter by price, provider, context, etc. |
+| **Cost**       | `calculateCost(...)`   | `calculate_cost(...)`   | `CalculateCost(...)`   | `calculate_cost(...)`   | Estimate cost for a given token count    |
+| **Events**     | `on(event, fn)`        | `on(event, fn)`         | `On(event, fn)`        | `on(event, fn)`         | Subscribe to SDK events                  |
 
 ### Filter Options
 
 ```typescript
 or.filterModels({
-  freeOnly: true,                // free models only
-  search: "claude",              // search by name or ID
-  provider: "anthropic",         // filter by provider
-  minContextLength: 100000,      // minimum context window
-  maxPrice: 0.001,               // max price per token
+  freeOnly: true, // free models only
+  search: "claude", // search by name or ID
+  provider: "anthropic", // filter by provider
+  minContextLength: 100000, // minimum context window
+  maxPrice: 0.001, // max price per token
 });
 ```
 
 ### Events
 
-| Event | Payload | When |
-| --- | --- | --- |
-| `models:updated` | `{ count }` | After models are fetched |
-| `model:added` | `{ modelId }` | After a model config is saved |
-| `chat:success` | `{ model, tokens }` | After a successful chat |
-| `chat:error` | `{ model, error }` | After a failed chat |
-| `error` | `{ code, message }` | Any SDK error |
+| Event            | Payload             | When                          |
+| ---------------- | ------------------- | ----------------------------- |
+| `models:updated` | `{ count }`         | After models are fetched      |
+| `model:added`    | `{ modelId }`       | After a model config is saved |
+| `chat:success`   | `{ model, tokens }` | After a successful chat       |
+| `chat:error`     | `{ model, error }`  | After a failed chat           |
+| `error`          | `{ code, message }` | Any SDK error                 |
 
 ---
 
@@ -249,14 +281,20 @@ Standard OpenAI-compatible function definitions. Works with streaming too.
 const resp = await or.chat({
   model: "openai/gpt-4o-mini",
   messages: [{ role: "user", content: "Weather in Tokyo?" }],
-  tools: [{
-    type: "function",
-    function: {
-      name: "get_weather",
-      description: "Get weather for a city",
-      parameters: { type: "object", properties: { city: { type: "string" } }, required: ["city"] },
+  tools: [
+    {
+      type: "function",
+      function: {
+        name: "get_weather",
+        description: "Get weather for a city",
+        parameters: {
+          type: "object",
+          properties: { city: { type: "string" } },
+          required: ["city"],
+        },
+      },
     },
-  }],
+  ],
   tool_choice: "auto",
 });
 ```
@@ -268,10 +306,12 @@ Built-in helpers to add server-side web search to any request.
 ```typescript
 import { enableWebSearch } from "@openrouter-auto/core";
 
-const resp = await or.chat(enableWebSearch({
-  model: "openai/gpt-4o-mini",
-  messages: [{ role: "user", content: "Latest AI news?" }],
-}));
+const resp = await or.chat(
+  enableWebSearch({
+    model: "openai/gpt-4o-mini",
+    messages: [{ role: "user", content: "Latest AI news?" }],
+  }),
+);
 ```
 
 ```python
@@ -290,13 +330,18 @@ Pass images to any vision-capable model.
 ```typescript
 const resp = await or.chat({
   model: "openai/gpt-4.1-mini",
-  messages: [{
-    role: "user",
-    content: [
-      { type: "text", text: "Describe this image." },
-      { type: "image_url", image_url: { url: "https://example.com/img.png" } },
-    ],
-  }],
+  messages: [
+    {
+      role: "user",
+      content: [
+        { type: "text", text: "Describe this image." },
+        {
+          type: "image_url",
+          image_url: { url: "https://example.com/img.png" },
+        },
+      ],
+    },
+  ],
 });
 ```
 
@@ -336,45 +381,20 @@ All SDKs map HTTP errors to typed error codes with user-friendly messages and re
 try {
   await or.chat({ model: "bad-model", messages: [] });
 } catch (err) {
-  console.log(err.code);      // "MODEL_NOT_FOUND"
-  console.log(err.retryable);  // false
+  console.log(err.code); // "MODEL_NOT_FOUND"
+  console.log(err.retryable); // false
 }
 ```
 
-| Error Code | HTTP | Retryable | Tip |
-| --- | --- | --- | --- |
-| `INVALID_API_KEY` | 401 | No | Check your key at openrouter.ai/keys |
-| `RATE_LIMITED` | 429 | Yes | Wait a few seconds before retrying |
-| `MODEL_NOT_FOUND` | 404 | No | Refresh the model list |
-| `INSUFFICIENT_CREDITS` | 402 | No | Add credits at openrouter.ai/credits |
-| `PROVIDER_ERROR` | 502 | Yes | Try a different model |
-| `NETWORK_ERROR` | — | Yes | Check your internet connection |
-| `TIMEOUT` | 408 | Yes | Try again or use a different model |
-
----
-
-## Python CLI
-
-The Python package includes a command-line tool for quick model management.
-
-| Command | Description |
-| --- | --- |
-| `openrouter-auto setup` | One-time API key setup |
-| `openrouter-auto models` | List all 345+ models |
-| `openrouter-auto models --free` | List free models only |
-| `openrouter-auto add <model>` | Add and validate a model |
-| `openrouter-auto add <model> --temperature 0.7` | Add with parameters |
-| `openrouter-auto test <model>` | Test a saved model |
-| `openrouter-auto chat <model> "prompt"` | Send a chat message |
-| `openrouter-auto chat <model> "prompt" --stream` | Stream a response |
-
-```bash
-export OPENROUTER_API_KEY=sk-or-v1-...
-
-openrouter-auto models --free
-openrouter-auto add anthropic/claude-3.5-sonnet --temperature 0.7
-openrouter-auto chat anthropic/claude-3.5-sonnet "Hello!"
-```
+| Error Code             | HTTP | Retryable | Tip                                  |
+| ---------------------- | ---- | --------- | ------------------------------------ |
+| `INVALID_API_KEY`      | 401  | No        | Check your key at openrouter.ai/keys |
+| `RATE_LIMITED`         | 429  | Yes       | Wait a few seconds before retrying   |
+| `MODEL_NOT_FOUND`      | 404  | No        | Refresh the model list               |
+| `INSUFFICIENT_CREDITS` | 402  | No        | Add credits at openrouter.ai/credits |
+| `PROVIDER_ERROR`       | 502  | Yes       | Try a different model                |
+| `NETWORK_ERROR`        | —    | Yes       | Check your internet connection       |
+| `TIMEOUT`              | 408  | Yes       | Try again or use a different model   |
 
 ---
 
@@ -382,12 +402,12 @@ openrouter-auto chat anthropic/claude-3.5-sonnet "Hello!"
 
 Four ready-to-use components. All state flows through `useOpenRouter()`.
 
-| Component | Purpose |
-| --- | --- |
-| `<ModelSelector />` | Searchable model dropdown with pricing |
+| Component              | Purpose                                      |
+| ---------------------- | -------------------------------------------- |
+| `<ModelSelector />`    | Searchable model dropdown with pricing       |
 | `<ModelConfigPanel />` | Parameter form with validation + test button |
-| `<CostEstimator />` | Live cost breakdown by token count |
-| `<ErrorDisplay />` | Error message with tips and retry |
+| `<CostEstimator />`    | Live cost breakdown by token count           |
+| `<ErrorDisplay />`     | Error message with tips and retry            |
 
 ```tsx
 import {
@@ -403,7 +423,7 @@ import {
   <ModelConfigPanel modelId={model} onSave={handleSave} showTestButton />
   <CostEstimator modelId={model} showTextInput />
   <ErrorDisplay onRetry={retry} onDismiss={dismiss} />
-</OpenRouterProvider>
+</OpenRouterProvider>;
 ```
 
 ---
@@ -412,33 +432,37 @@ import {
 
 All SDKs support pluggable storage via `options.storage` (or `storageType`).
 
-| Adapter | Runtimes | Persistence | Key |
-| --- | --- | --- | --- |
-| **Memory** | All | None (default) | `"memory"` |
-| **localStorage** | Browser (TS/React) | Per-domain | `"localStorage"` |
-| **File** | Node.js, Python, Go, Rust | `.openrouter-auto.json` | `"file"` |
+| Adapter          | Runtimes                  | Persistence             | Key              |
+| ---------------- | ------------------------- | ----------------------- | ---------------- |
+| **Memory**       | All                       | None (default)          | `"memory"`       |
+| **localStorage** | Browser (TS/React)        | Per-domain              | `"localStorage"` |
+| **File**         | Node.js, Python, Go, Rust | `.openrouter-auto.json` | `"file"`         |
 
 ```typescript
-new OpenRouterAuto({ apiKey: "...", storageType: "file", configPath: "./.openrouter-auto.json" });
+new OpenRouterAuto({
+  apiKey: "...",
+  storageType: "file",
+  configPath: "./.openrouter-auto.json",
+});
 ```
 
 ---
 
 ## Configuration
 
-| Option | Type | Default | Description |
-| --- | --- | --- | --- |
-| `apiKey` | `string` | — | **Required.** Your OpenRouter API key |
-| `baseUrl` | `string` | `https://openrouter.ai/api/v1` | API base URL |
-| `storageType` | `string` | `"memory"` | `"memory"` / `"localStorage"` / `"file"` |
-| `configPath` | `string` | `.openrouter-auto.json` | Path for file storage |
-| `autoFetch` | `bool` | `true` | Auto-fetch models on init |
-| `fetchInterval` | `number` | `3600000` | Model refresh interval (ms) |
-| `cacheDuration` | `number` | `3600000` | Cache TTL (ms) |
-| `enableTesting` | `bool` | `true` | Test models on add |
-| `testPrompt` | `string` | `"Say hello"` | Prompt used for model tests |
-| `onError` | `function` | — | Global error callback |
-| `onEvent` | `function` | — | Global event callback |
+| Option          | Type       | Default                        | Description                              |
+| --------------- | ---------- | ------------------------------ | ---------------------------------------- |
+| `apiKey`        | `string`   | —                              | **Required.** Your OpenRouter API key    |
+| `baseUrl`       | `string`   | `https://openrouter.ai/api/v1` | API base URL                             |
+| `storageType`   | `string`   | `"memory"`                     | `"memory"` / `"localStorage"` / `"file"` |
+| `configPath`    | `string`   | `.openrouter-auto.json`        | Path for file storage                    |
+| `autoFetch`     | `bool`     | `true`                         | Auto-fetch models on init                |
+| `fetchInterval` | `number`   | `3600000`                      | Model refresh interval (ms)              |
+| `cacheDuration` | `number`   | `3600000`                      | Cache TTL (ms)                           |
+| `enableTesting` | `bool`     | `true`                         | Test models on add                       |
+| `testPrompt`    | `string`   | `"Say hello"`                  | Prompt used for model tests              |
+| `onError`       | `function` | —                              | Global error callback                    |
+| `onEvent`       | `function` | —                              | Global event callback                    |
 
 ---
 
