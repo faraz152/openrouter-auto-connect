@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, Any, List, Optional, Tuple
 from .types import OpenRouterModel, ParameterDefinition
 
-_REGISTRY_DIR = Path(__file__).resolve().parent.parent.parent / "registry"
+_REGISTRY_DIR = Path(__file__).resolve().parent / "registry"
 
 # Build DEFAULT_PARAMETERS from registry JSON
 def _load_parameters() -> Dict[str, ParameterDefinition]:

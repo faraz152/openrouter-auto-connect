@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import List, Optional
 from .types import OpenRouterModel, CostEstimate
 
-_REGISTRY_DIR = Path(__file__).resolve().parent.parent.parent / "registry"
+_REGISTRY_DIR = Path(__file__).resolve().parent / "registry"
 _cost_data = json.loads((_REGISTRY_DIR / "cost.json").read_text())
 
 

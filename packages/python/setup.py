@@ -21,6 +21,9 @@ setup(
         "Source Code": "https://github.com/faraz152/openrouter-auto-connect/tree/main/packages/python",
     },
     packages=find_packages(),
+    package_data={
+        "openrouter_auto": ["registry/*.json"],
+    },
     classifiers=[
         "Development Status :: 4 - Beta",
         "Intended Audience :: Developers",

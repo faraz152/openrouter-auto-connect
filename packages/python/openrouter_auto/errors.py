@@ -8,7 +8,7 @@ from pathlib import Path
 from typing import Dict, Any, Optional
 from .types import OpenRouterError, OpenRouterErrorCode
 
-_REGISTRY_DIR = Path(__file__).resolve().parent.parent.parent / "registry"
+_REGISTRY_DIR = Path(__file__).resolve().parent / "registry"
 _errors_data = json.loads((_REGISTRY_DIR / "errors.json").read_text())
 
 # Error code mapping from HTTP status codes (loaded from registry)
