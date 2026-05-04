@@ -50,7 +50,7 @@ pub struct Model {
 
 // ── Chat types ──────────────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct ChatMessage {
     pub role: String,
     #[serde(default)]
@@ -299,4 +299,133 @@ pub struct Options {
     pub site_name: Option<String>,
     pub storage_type: Option<String>,
     pub config_path: Option<String>,
+}
+
+// ── Filter options ───────────────────────────────────────────────────────────
+
+/// Criteria for [`Client::filter_models`].
+#[derive(Debug, Clone, Default)]
+pub struct ModelFilterOptions {
+    pub modality: Option<String>,
+    pub input_modalities: Vec<String>,
+    pub output_modalities: Vec<String>,
+    /// When `Some`, models with a per-token price above this value are excluded.
+    pub max_price: Option<f64>,
+    pub min_context_length: Option<i64>,
+    pub max_context_length: Option<i64>,
+    pub provider: Option<String>,
+    pub search: Option<String>,
+    pub supported_parameters: Vec<String>,
+    pub exclude_models: Vec<String>,
+    pub free_only: bool,
+    /// "free" | "cheap" | "moderate" | "expensive"
+    pub price_tier: Option<String>,
+}
+
+// ── Streaming types ──────────────────────────────────────────────────────────
+
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
+pub struct StreamDelta {
+    #[serde(default)]
+    pub content: Option<String>,
+    #[serde(default)]
+    pub reasoning: Option<String>,
+    #[serde(default)]
+    pub reasoning_content: Option<String>,
+    #[serde(default)]
+    pub role: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamChoice {
+    pub index: i64,
+    pub delta: StreamDelta,
+    #[serde(default)]
+    pub finish_reason: Option<String>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct StreamChunk {
+    #[serde(default)]
+    pub id: String,
+    #[serde(default)]
+    pub model: String,
+    #[serde(default)]
+    pub choices: Vec<StreamChoice>,
+    #[serde(default)]
+    pub usage: Option<ChatUsage>,
+    #[serde(default)]
+    pub created: i64,
+}
+
+/// Accumulates streaming chunks into a complete [`ChatResponse`].
+///
+/// # Example
+///
+/// ```no_run
+/// // let mut acc = StreamAccumulator::default();
+/// // while let Some(chunk) = stream.recv().await {
+/// //     acc.push(chunk);
+/// // }
+/// // let response = acc.to_response();
+/// ```
+#[derive(Debug, Clone, Default)]
+pub struct StreamAccumulator {
+    pub content: String,
+    pub reasoning: String,
+    pub finish_reason: String,
+    id: String,
+    model: String,
+    created: i64,
+    usage: Option<ChatUsage>,
+}
+
+impl StreamAccumulator {
+    /// Push one streaming chunk into the accumulator.
+    pub fn push(&mut self, chunk: StreamChunk) {
+        if !chunk.id.is_empty() { self.id = chunk.id.clone(); }
+        if !chunk.model.is_empty() { self.model = chunk.model.clone(); }
+        if chunk.created != 0 { self.created = chunk.created; }
+        if chunk.usage.is_some() { self.usage = chunk.usage.clone(); }
+
+        if let Some(choice) = chunk.choices.first() {
+            if let Some(fr) = &choice.finish_reason {
+                if !fr.is_empty() { self.finish_reason = fr.clone(); }
+            }
+            let d = &choice.delta;
+            if let Some(c) = &d.content { self.content.push_str(c); }
+            if let Some(r) = &d.reasoning { self.reasoning.push_str(r); }
+            if let Some(r) = &d.reasoning_content { self.reasoning.push_str(r); }
+        }
+    }
+
+    /// Convert accumulated state into a [`ChatResponse`].
+    pub fn to_response(&self) -> ChatResponse {
+        let msg = ChatMessage {
+            role: "assistant".to_string(),
+            content: Some(serde_json::Value::String(self.content.clone())),
+            reasoning: if self.reasoning.is_empty() { None } else { Some(self.reasoning.clone()) },
+            ..Default::default()
+        };
+        ChatResponse {
+            id: self.id.clone(),
+            model: self.model.clone(),
+            created: self.created,
+            choices: vec![ChatChoice {
+                index: 0,
+                message: msg,
+                finish_reason: if self.finish_reason.is_empty() { None } else { Some(self.finish_reason.clone()) },
+            }],
+            usage: self.usage.clone(),
+        }
+    }
+}
+
+// ── Events ───────────────────────────────────────────────────────────────────
+
+/// An event emitted by the SDK.
+#[derive(Debug, Clone)]
+pub struct Event {
+    pub event_type: String,
+    pub payload: serde_json::Value,
 }

@@ -269,3 +269,148 @@ func TestAddModel_SkipTest(t *testing.T) {
 		t.Errorf("expected unknown status when skipTest=true, got %s", cfg.TestStatus)
 	}
 }
+
+// ── FilterModels ─────────────────────────────────────────────────────────────
+
+func TestFilterModels_FreeOnly(t *testing.T) {
+	models := []ora.Model{
+		{ID: "vendor/free-model:free", Name: "Free", Pricing: ora.ModelPricing{Prompt: "0", Completion: "0"}, Architecture: ora.ModelArchitecture{Modality: "text->text"}},
+		{ID: "vendor/paid-model", Name: "Paid", Pricing: ora.ModelPricing{Prompt: "0.001", Completion: "0.002"}, Architecture: ora.ModelArchitecture{Modality: "text->text"}},
+	}
+	srv := httptest.NewServer(modelsHandler(models))
+	defer srv.Close()
+
+	c := newTestClient(t, srv)
+	if _, err := c.FetchModels(); err != nil {
+		t.Fatalf("FetchModels: %v", err)
+	}
+
+	free := c.FilterModels(ora.ModelFilterOptions{FreeOnly: true})
+	if len(free) != 1 {
+		t.Fatalf("expected 1 free model, got %d", len(free))
+	}
+	if free[0].ID != "vendor/free-model:free" {
+		t.Errorf("unexpected free model: %s", free[0].ID)
+	}
+}
+
+func TestFilterModels_Search(t *testing.T) {
+	models := []ora.Model{
+		{ID: "openai/gpt-4o", Name: "GPT-4o"},
+		{ID: "anthropic/claude", Name: "Claude"},
+	}
+	srv := httptest.NewServer(modelsHandler(models))
+	defer srv.Close()
+
+	c := newTestClient(t, srv)
+	c.FetchModels()
+
+	results := c.FilterModels(ora.ModelFilterOptions{Search: "gpt"})
+	if len(results) != 1 || results[0].ID != "openai/gpt-4o" {
+		t.Errorf("search filter failed: %v", results)
+	}
+}
+
+func TestFilterModels_Provider(t *testing.T) {
+	models := []ora.Model{
+		{ID: "openai/gpt-4o", Name: "GPT-4o"},
+		{ID: "anthropic/claude", Name: "Claude"},
+	}
+	srv := httptest.NewServer(modelsHandler(models))
+	defer srv.Close()
+
+	c := newTestClient(t, srv)
+	c.FetchModels()
+
+	results := c.FilterModels(ora.ModelFilterOptions{Provider: "anthropic"})
+	if len(results) != 1 || results[0].ID != "anthropic/claude" {
+		t.Errorf("provider filter failed: %v", results)
+	}
+}
+
+// ── StreamChat ───────────────────────────────────────────────────────────────
+
+func TestStreamChat(t *testing.T) {
+	// SSE response with two content chunks then [DONE]
+	sseBody := "data: {\"id\":\"1\",\"model\":\"test\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\"Hello\"}}],\"created\":0}\n\n" +
+		"data: {\"id\":\"1\",\"model\":\"test\",\"choices\":[{\"index\":0,\"delta\":{\"content\":\" World\"},\"finish_reason\":\"stop\"}],\"created\":0}\n\n" +
+		"data: [DONE]\n\n"
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "text/event-stream")
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte(sseBody))
+	}))
+	defer srv.Close()
+
+	c := newTestClient(t, srv)
+	ch, errCh := c.StreamChat(ora.ChatRequest{
+		Model:    "test-model",
+		Messages: []ora.ChatMessage{{Role: "user", Content: "Hi"}},
+	})
+
+	acc := &ora.StreamAccumulator{}
+	for chunk := range ch {
+		acc.Push(chunk)
+	}
+	if err := <-errCh; err != nil {
+		t.Fatalf("StreamChat error: %v", err)
+	}
+	if acc.Content != "Hello World" {
+		t.Errorf("unexpected content: %q", acc.Content)
+	}
+	if acc.FinishReason != "stop" {
+		t.Errorf("unexpected finish_reason: %q", acc.FinishReason)
+	}
+	resp := acc.ToResponse()
+	if resp.Content() != "Hello World" {
+		t.Errorf("ToResponse content: %q", resp.Content())
+	}
+}
+
+// ── Web search helpers ────────────────────────────────────────────────────────
+
+func TestCreateWebSearchTool(t *testing.T) {
+	tool := ora.CreateWebSearchTool(nil)
+	if tool["type"] != "openrouter:web_search" {
+		t.Errorf("unexpected tool type: %v", tool["type"])
+	}
+}
+
+func TestEnableWebSearch(t *testing.T) {
+	req := ora.ChatRequest{Model: "m", Messages: []ora.ChatMessage{{Role: "user", Content: "search"}}}
+	updated := ora.EnableWebSearch(req, nil)
+	if len(updated.Tools) != 1 {
+		t.Fatalf("expected 1 tool, got %d", len(updated.Tools))
+	}
+	if len(req.Tools) != 0 {
+		t.Error("original request should not be mutated")
+	}
+}
+
+// ── Event system ──────────────────────────────────────────────────────────────
+
+func TestEventSystem(t *testing.T) {
+	models := []ora.Model{{ID: "openai/gpt-4o", Name: "GPT-4o"}}
+	srv := httptest.NewServer(modelsHandler(models))
+	defer srv.Close()
+
+	c := newTestClient(t, srv)
+
+	var fired []string
+	unsub := c.On("models:updated", func(e ora.Event) {
+		fired = append(fired, e.Type)
+	})
+
+	c.FetchModels()
+	if len(fired) != 1 || fired[0] != "models:updated" {
+		t.Errorf("expected models:updated event, got: %v", fired)
+	}
+
+	// Unsubscribe and verify no more events
+	unsub()
+	c.FetchModels()
+	if len(fired) != 1 {
+		t.Errorf("after unsubscribe, still received events: %v", fired)
+	}
+}

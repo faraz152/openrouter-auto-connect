@@ -71,3 +71,6 @@ htmlcov/
 temp/
 tmp/
 CLAUDE.md
+
+# ── Claude Code worktrees (local AI agent artifacts) ─────────
+.claude/

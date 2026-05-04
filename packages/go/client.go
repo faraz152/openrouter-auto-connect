@@ -1,6 +1,7 @@
 package openrouterauto
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/json"
 	"fmt"
@@ -19,13 +20,16 @@ const (
 
 // Client is the main SDK entry point for the OpenRouter API.
 type Client struct {
-	apiKey  string
-	baseURL string
-	httpCli *http.Client
-	headers map[string]string
-	Storage Storage
-	models  []Model
-	configs map[string]ModelConfig
+	apiKey        string
+	baseURL       string
+	httpCli       *http.Client
+	headers       map[string]string
+	Storage       Storage
+	models        []Model
+	configs       map[string]ModelConfig
+	onEvent       func(Event)
+	onError       func(*ORAError)
+	eventHandlers map[string][]EventHandler
 }
 
 // NewClient creates a Client from Options.
@@ -76,8 +80,11 @@ func NewClient(opts Options) (*Client, error) {
 			"HTTP-Referer": siteURL,
 			"X-Title":      siteName,
 		},
-		Storage: store,
-		configs: make(map[string]ModelConfig),
+		Storage:       store,
+		configs:       make(map[string]ModelConfig),
+		onEvent:       opts.OnEvent,
+		onError:       opts.OnError,
+		eventHandlers: make(map[string][]EventHandler),
 	}, nil
 }
 
@@ -127,6 +134,7 @@ func (c *Client) FetchModels() ([]Model, error) {
 		return nil, &ORAError{Code: ErrUnknown, Message: "failed to parse models response"}
 	}
 	c.models = result.Data
+	c.emit("models:updated", map[string]any{"count": len(c.models)})
 	return c.models, nil
 }
 
@@ -215,4 +223,249 @@ func (c *Client) CheckModelAvailability(modelID string) (bool, string, float64) 
 		return false, err.Error(), elapsed
 	}
 	return true, "", elapsed
+}
+
+// FilterModels returns the subset of cached models matching the given options.
+// Call FetchModels first to populate the cache.
+func (c *Client) FilterModels(opts ModelFilterOptions) []Model {
+	var out []Model
+	for _, m := range c.models {
+		// Modality
+		if opts.Modality != "" && m.Architecture.Modality != opts.Modality {
+			continue
+		}
+		// Input modalities
+		if len(opts.InputModalities) > 0 {
+			if !allIn(opts.InputModalities, m.Architecture.InputModalities) {
+				continue
+			}
+		}
+		// Output modalities
+		if len(opts.OutputModalities) > 0 {
+			if !allIn(opts.OutputModalities, m.Architecture.OutputModalities) {
+				continue
+			}
+		}
+		// Max price
+		if opts.HasMaxPrice {
+			pp := parseModelPrice(m.Pricing.Prompt)
+			cp := parseModelPrice(m.Pricing.Completion)
+			if pp > opts.MaxPrice || cp > opts.MaxPrice {
+				continue
+			}
+		}
+		// Context length
+		if opts.MinContextLength > 0 && m.ContextLength < opts.MinContextLength {
+			continue
+		}
+		if opts.MaxContextLength > 0 && m.ContextLength > opts.MaxContextLength {
+			continue
+		}
+		// Provider
+		if opts.Provider != "" {
+			if idx := strings.Index(m.ID, "/"); idx < 0 || m.ID[:idx] != opts.Provider {
+				continue
+			}
+		}
+		// Search
+		if opts.Search != "" {
+			q := strings.ToLower(opts.Search)
+			if !strings.Contains(strings.ToLower(m.ID), q) &&
+				!strings.Contains(strings.ToLower(m.Name), q) &&
+				!strings.Contains(strings.ToLower(m.Description), q) {
+				continue
+			}
+		}
+		// Supported parameters
+		if len(opts.SupportedParameters) > 0 {
+			if !allIn(opts.SupportedParameters, m.SupportedParameters) {
+				continue
+			}
+		}
+		// Exclude list
+		if containsStr(opts.ExcludeModels, m.ID) {
+			continue
+		}
+		// Free only
+		if opts.FreeOnly {
+			if parseModelPrice(m.Pricing.Prompt) > 0 || parseModelPrice(m.Pricing.Completion) > 0 {
+				continue
+			}
+		}
+		// Price tier
+		if opts.PriceTier != "" && GetPriceTier(m) != opts.PriceTier {
+			continue
+		}
+		out = append(out, m)
+	}
+	return out
+}
+
+// StreamChat sends a streaming chat request and returns a channel of chunks plus
+// an error channel. The caller should drain both channels. The error channel
+// receives at most one value and is closed when streaming finishes.
+//
+//	ch, errCh := client.StreamChat(req)
+//	acc := &ora.StreamAccumulator{}
+//	for chunk := range ch {
+//	    acc.Push(chunk)
+//	}
+//	if err := <-errCh; err != nil { ... }
+func (c *Client) StreamChat(req ChatRequest) (<-chan StreamChunk, <-chan error) {
+	ch := make(chan StreamChunk, 32)
+	errCh := make(chan error, 1)
+
+	req.Stream = true
+	payload, err := json.Marshal(req)
+	if err != nil {
+		close(ch)
+		errCh <- &ORAError{Code: ErrInvalidParameters, Message: "failed to serialise request"}
+		close(errCh)
+		return ch, errCh
+	}
+
+	go func() {
+		defer close(ch)
+		defer close(errCh)
+
+		httpReq, err := http.NewRequest("POST", c.baseURL+"/chat/completions", bytes.NewReader(payload))
+		if err != nil {
+			errCh <- newNetworkError(err)
+			return
+		}
+		for k, v := range c.headers {
+			httpReq.Header.Set(k, v)
+		}
+		httpReq.Header.Set("Authorization", "Bearer "+c.apiKey)
+		httpReq.Header.Set("Accept", "text/event-stream")
+
+		resp, err := c.httpCli.Do(httpReq)
+		if err != nil {
+			errCh <- newNetworkError(err)
+			return
+		}
+		defer resp.Body.Close()
+
+		if resp.StatusCode >= 400 {
+			body, _ := io.ReadAll(resp.Body)
+			errCh <- parseHTTPError(resp, body)
+			return
+		}
+
+		scanner := bufio.NewScanner(resp.Body)
+		for scanner.Scan() {
+			line := scanner.Text()
+			if !strings.HasPrefix(line, "data: ") {
+				continue
+			}
+			data := line[6:]
+			if data == "[DONE]" {
+				break
+			}
+			var chunk StreamChunk
+			if err := json.Unmarshal([]byte(data), &chunk); err == nil {
+				ch <- chunk
+			}
+		}
+		if err := scanner.Err(); err != nil {
+			errCh <- newNetworkError(err)
+		}
+	}()
+
+	return ch, errCh
+}
+
+// ── Event system ─────────────────────────────────────────────────────────────
+
+// On registers an event handler for the given event type and returns an
+// unsubscribe function.
+func (c *Client) On(eventType string, handler EventHandler) func() {
+	c.eventHandlers[eventType] = append(c.eventHandlers[eventType], handler)
+	return func() {
+		handlers := c.eventHandlers[eventType]
+		for i, h := range handlers {
+			// Compare function pointers via fmt.Sprintf — sufficient for dedup.
+			if fmt.Sprintf("%p", h) == fmt.Sprintf("%p", handler) {
+				c.eventHandlers[eventType] = append(handlers[:i], handlers[i+1:]...)
+				return
+			}
+		}
+	}
+}
+
+func (c *Client) emit(eventType string, payload any) {
+	e := Event{Type: eventType, Payload: payload}
+	if c.onEvent != nil {
+		c.onEvent(e)
+	}
+	for _, h := range c.eventHandlers[eventType] {
+		h(e)
+	}
+}
+
+func (c *Client) handleError(err *ORAError) {
+	if c.onError != nil {
+		c.onError(err)
+	}
+	c.emit("error", err)
+}
+
+// ── Web search helpers ────────────────────────────────────────────────────────
+
+// WebSearchParams holds optional configuration for the web search tool.
+type WebSearchParams struct {
+	MaxResults   int    `json:"max_results,omitempty"`
+	SearchPrompt string `json:"search_prompt,omitempty"`
+}
+
+// CreateWebSearchTool builds a server-tool entry for OpenRouter's built-in
+// web search. Pass nil for default parameters.
+//
+//	req.Tools = append(req.Tools, ora.CreateWebSearchTool(nil))
+func CreateWebSearchTool(params *WebSearchParams) map[string]any {
+	tool := map[string]any{"type": "openrouter:web_search"}
+	if params != nil {
+		tool["parameters"] = params
+	}
+	return tool
+}
+
+// EnableWebSearch returns a copy of req with the web search tool appended to
+// its Tools slice.
+func EnableWebSearch(req ChatRequest, params *WebSearchParams) ChatRequest {
+	tools := make([]any, len(req.Tools))
+	copy(tools, req.Tools)
+	tools = append(tools, CreateWebSearchTool(params))
+	req.Tools = tools
+	return req
+}
+
+// ── Internal helpers ──────────────────────────────────────────────────────────
+
+func allIn(needles, haystack []string) bool {
+	set := make(map[string]struct{}, len(haystack))
+	for _, s := range haystack {
+		set[s] = struct{}{}
+	}
+	for _, n := range needles {
+		if _, ok := set[n]; !ok {
+			return false
+		}
+	}
+	return true
+}
+
+func containsStr(slice []string, s string) bool {
+	for _, v := range slice {
+		if v == s {
+			return true
+		}
+	}
+	return false
+}
+
+func parseModelPrice(s string) float64 {
+	var v float64
+	fmt.Sscanf(s, "%f", &v)
+	return v
 }

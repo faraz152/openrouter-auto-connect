@@ -41,7 +41,7 @@ async def main():
     # Add a model
     model_id = "anthropic/claude-3.5-sonnet"
     print(f"\n➕ Adding model: {model_id}")
-    
+
     try:
         config = await or_auto.add_model(
             model_id,
@@ -73,11 +73,11 @@ async def main():
                 ChatMessage(role="user", content="What is the capital of France?")
             ],
         ))
-        
+
         print(f"✅ Response received!")
         print(f"   Model: {response.model}")
         print(f"   Content: {response.choices[0]['message']['content']}")
-        
+
         if response.usage:
             print(f"   Tokens used: {response.usage['total_tokens']}")
     except Exception as e:

@@ -276,3 +276,153 @@ async fn test_add_model_skip_test() {
     assert_eq!(cfg.model_id, "openai/gpt-4o");
     assert_eq!(cfg.test_status, Some("unknown".to_string()));
 }
+
+// ── FilterModels ────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn test_filter_models_free_only() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/models"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [
+                sample_model("vendor/free:free", "0", "0"),
+                sample_model("vendor/paid", "0.001", "0.002"),
+            ]
+        })))
+        .mount(&server)
+        .await;
+
+    let client = test_client(&server.uri());
+    client.fetch_models().await.unwrap();
+
+    let opts = ModelFilterOptions { free_only: true, ..Default::default() };
+    let free = client.filter_models(&opts);
+    assert_eq!(free.len(), 1);
+    assert_eq!(free[0].id, "vendor/free:free");
+}
+
+#[tokio::test]
+async fn test_filter_models_search() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/models"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [
+                sample_model("openai/gpt-4o", "0.001", "0.002"),
+                sample_model("anthropic/claude", "0.001", "0.002"),
+            ]
+        })))
+        .mount(&server)
+        .await;
+
+    let client = test_client(&server.uri());
+    client.fetch_models().await.unwrap();
+
+    let opts = ModelFilterOptions { search: Some("gpt".to_string()), ..Default::default() };
+    let results = client.filter_models(&opts);
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].id, "openai/gpt-4o");
+}
+
+#[tokio::test]
+async fn test_filter_models_provider() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/models"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [
+                sample_model("openai/gpt-4o", "0.001", "0.002"),
+                sample_model("anthropic/claude", "0.001", "0.002"),
+            ]
+        })))
+        .mount(&server)
+        .await;
+
+    let client = test_client(&server.uri());
+    client.fetch_models().await.unwrap();
+
+    let opts = ModelFilterOptions { provider: Some("anthropic".to_string()), ..Default::default() };
+    let results = client.filter_models(&opts);
+    assert_eq!(results.len(), 1);
+    assert_eq!(results[0].id, "anthropic/claude");
+}
+
+// ── StreamAccumulator ───────────────────────────────────────────────────────
+
+#[test]
+fn test_stream_accumulator() {
+    let mut acc = StreamAccumulator::default();
+
+    acc.push(StreamChunk {
+        id: "c1".to_string(),
+        model: "test".to_string(),
+        choices: vec![StreamChoice {
+            index: 0,
+            delta: StreamDelta { content: Some("Hello".to_string()), ..Default::default() },
+            finish_reason: None,
+        }],
+        usage: None,
+        created: 1,
+    });
+    acc.push(StreamChunk {
+        id: "c1".to_string(),
+        model: "test".to_string(),
+        choices: vec![StreamChoice {
+            index: 0,
+            delta: StreamDelta { content: Some(" World".to_string()), ..Default::default() },
+            finish_reason: Some("stop".to_string()),
+        }],
+        usage: None,
+        created: 1,
+    });
+
+    assert_eq!(acc.content, "Hello World");
+    assert_eq!(acc.finish_reason, "stop");
+
+    let resp = acc.to_response();
+    assert_eq!(resp.content(), "Hello World");
+}
+
+// ── Web search helpers ───────────────────────────────────────────────────────
+
+#[test]
+fn test_create_web_search_tool() {
+    let tool = create_web_search_tool(None);
+    assert_eq!(tool["type"], "openrouter:web_search");
+}
+
+#[test]
+fn test_enable_web_search() {
+    let req = ChatRequest::new("m", vec![ChatMessage::new("user", "hello")]);
+    let updated = enable_web_search(&req, None);
+    assert_eq!(updated.tools.as_ref().unwrap().len(), 1);
+    // original unchanged
+    assert!(req.tools.is_none());
+}
+
+// ── Event system ─────────────────────────────────────────────────────────────
+
+#[tokio::test]
+async fn test_event_system() {
+    let server = MockServer::start().await;
+    Mock::given(method("GET"))
+        .and(path("/models"))
+        .respond_with(ResponseTemplate::new(200).set_body_json(serde_json::json!({
+            "data": [ sample_model("openai/gpt-4o", "0.001", "0.002") ]
+        })))
+        .mount(&server)
+        .await;
+
+    let client = test_client(&server.uri());
+    let fired = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
+    let fired_clone = fired.clone();
+
+    let _sub = client.on("models:updated", move |e| {
+        fired_clone.lock().unwrap().push(e.event_type.clone());
+    });
+
+    client.fetch_models().await.unwrap();
+    let events = fired.lock().unwrap().clone();
+    assert_eq!(events, vec!["models:updated"]);
+}

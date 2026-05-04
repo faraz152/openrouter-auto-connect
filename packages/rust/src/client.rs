@@ -1,3 +1,4 @@
+use crate::cost::{get_price_tier, is_free_model};
 use crate::errors::{self, OraError, ERR_INVALID_API_KEY, ERR_INVALID_PARAMETERS, ERR_UNKNOWN};
 use crate::storage::{MemoryStorage, Storage};
 use crate::types::*;
@@ -17,6 +18,7 @@ pub struct Client {
     pub storage: Box<dyn Storage>,
     models: Mutex<Vec<Model>>,
     configs: Mutex<HashMap<String, ModelConfig>>,
+    event_handlers: Mutex<Vec<(String, Box<dyn Fn(Event) + Send + Sync>)>>,
 }
 
 impl Client {
@@ -96,6 +98,7 @@ impl Client {
             storage,
             models: Mutex::new(Vec::new()),
             configs: Mutex::new(HashMap::new()),
+            event_handlers: Mutex::new(Vec::new()),
         })
     }
 
@@ -152,6 +155,7 @@ impl Client {
         })?;
 
         *self.models.lock().unwrap() = result.data.clone();
+        self.emit("models:updated", serde_json::json!({ "count": result.data.len() }));
         Ok(result.data)
     }
 
@@ -240,4 +244,184 @@ impl Client {
         self.chat(&req).await?;
         Ok(())
     }
+
+    // ── FilterModels ──────────────────────────────────────────────────────
+
+    /// Return the subset of cached models matching `opts`.
+    /// Call [`fetch_models`] first to populate the cache.
+    pub fn filter_models(&self, opts: &ModelFilterOptions) -> Vec<Model> {
+        let models = self.models.lock().unwrap().clone();
+        models
+            .into_iter()
+            .filter(|m| {
+                if let Some(mod_) = &opts.modality {
+                    if m.architecture.modality != *mod_ { return false; }
+                }
+                if !opts.input_modalities.is_empty() {
+                    if !opts.input_modalities.iter().all(|r| m.architecture.input_modalities.contains(r)) {
+                        return false;
+                    }
+                }
+                if !opts.output_modalities.is_empty() {
+                    if !opts.output_modalities.iter().all(|r| m.architecture.output_modalities.contains(r)) {
+                        return false;
+                    }
+                }
+                if let Some(max_p) = opts.max_price {
+                    let pp = m.pricing.prompt.parse::<f64>().unwrap_or(0.0);
+                    let cp = m.pricing.completion.parse::<f64>().unwrap_or(0.0);
+                    if pp > max_p || cp > max_p { return false; }
+                }
+                if let Some(min_ctx) = opts.min_context_length {
+                    if m.context_length < min_ctx { return false; }
+                }
+                if let Some(max_ctx) = opts.max_context_length {
+                    if m.context_length > max_ctx { return false; }
+                }
+                if let Some(provider) = &opts.provider {
+                    let p = m.id.split('/').next().unwrap_or("");
+                    if p != provider { return false; }
+                }
+                if let Some(q) = &opts.search {
+                    let q = q.to_lowercase();
+                    let desc = m.description.as_deref().unwrap_or("").to_lowercase();
+                    if !m.id.to_lowercase().contains(&q)
+                        && !m.name.to_lowercase().contains(&q)
+                        && !desc.contains(&q)
+                    {
+                        return false;
+                    }
+                }
+                if !opts.supported_parameters.is_empty() {
+                    if !opts.supported_parameters.iter().all(|p| m.supported_parameters.contains(p)) {
+                        return false;
+                    }
+                }
+                if opts.exclude_models.contains(&m.id) { return false; }
+                if opts.free_only && !is_free_model(m) { return false; }
+                if let Some(tier) = &opts.price_tier {
+                    if &get_price_tier(m) != tier { return false; }
+                }
+                true
+            })
+            .collect()
+    }
+
+    // ── StreamChat ────────────────────────────────────────────────────────
+
+    /// Send a streaming chat request. Returns an `async_stream` of [`StreamChunk`]s.
+    /// Use [`StreamAccumulator`] to assemble the full response.
+    pub async fn stream_chat(
+        &self,
+        req: &ChatRequest,
+    ) -> Result<tokio::sync::mpsc::Receiver<StreamChunk>, OraError> {
+        let mut req = req.clone();
+        req.stream = Some(true);
+
+        let payload = serde_json::to_vec(&req).map_err(|_| OraError {
+            code: ERR_INVALID_PARAMETERS.to_string(),
+            message: "failed to serialise request".to_string(),
+            retryable: false,
+            details: None,
+        })?;
+
+        let url = format!("{}/chat/completions", self.base_url);
+        let resp = self
+            .http
+            .post(&url)
+            .header(AUTHORIZATION, format!("Bearer {}", self.api_key))
+            .body(payload)
+            .send()
+            .await
+            .map_err(|e| errors::network_error(&e))?;
+
+        let status = resp.status().as_u16();
+        if status >= 400 {
+            let body = resp.text().await.unwrap_or_default();
+            return Err(errors::parse_http_error(status, &body));
+        }
+
+        let (tx, rx) = tokio::sync::mpsc::channel::<StreamChunk>(64);
+        let mut stream = resp.bytes_stream();
+
+        tokio::spawn(async move {
+            use futures_util::StreamExt;
+            let mut buf = String::new();
+            while let Some(chunk) = stream.next().await {
+                let bytes = match chunk { Ok(b) => b, Err(_) => break };
+                buf.push_str(&String::from_utf8_lossy(&bytes));
+                // Process complete lines
+                while let Some(pos) = buf.find('\n') {
+                    let line = buf[..pos].trim().to_string();
+                    buf = buf[pos + 1..].to_string();
+                    if let Some(data) = line.strip_prefix("data: ") {
+                        if data == "[DONE]" { return; }
+                        if let Ok(sc) = serde_json::from_str::<StreamChunk>(data) {
+                            let _ = tx.send(sc).await;
+                        }
+                    }
+                }
+            }
+        });
+
+        Ok(rx)
+    }
+
+    // ── Event system ──────────────────────────────────────────────────────
+
+    /// Register a handler for `event_type`. Returns an unsubscribe token.
+    /// Drop the token to unsubscribe.
+    pub fn on<F>(&self, event_type: &str, handler: F) -> EventSubscription
+    where
+        F: Fn(Event) + Send + Sync + 'static,
+    {
+        let id = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        self.event_handlers
+            .lock()
+            .unwrap()
+            .push((event_type.to_string(), Box::new(handler)));
+        EventSubscription { _id: id }
+    }
+
+    fn emit(&self, event_type: &str, payload: serde_json::Value) {
+        let event = Event {
+            event_type: event_type.to_string(),
+            payload,
+        };
+        for (et, handler) in self.event_handlers.lock().unwrap().iter() {
+            if et == event_type {
+                handler(event.clone());
+            }
+        }
+    }
+}
+
+/// Returned by [`Client::on`]; dropping it does nothing (handlers persist for
+/// the lifetime of the client). To implement unsubscription, store the
+/// subscription and call [`Client::off`] if needed.
+pub struct EventSubscription {
+    pub _id: u128,
+}
+
+// ── Web search helpers ────────────────────────────────────────────────────────
+
+/// Build an OpenRouter web search server-tool entry.
+/// Pass `None` for default parameters.
+pub fn create_web_search_tool(params: Option<serde_json::Value>) -> serde_json::Value {
+    match params {
+        None => serde_json::json!({"type": "openrouter:web_search"}),
+        Some(p) => serde_json::json!({"type": "openrouter:web_search", "parameters": p}),
+    }
+}
+
+/// Return a clone of `req` with the web search tool appended to its `tools` list.
+pub fn enable_web_search(req: &ChatRequest, params: Option<serde_json::Value>) -> ChatRequest {
+    let mut req = req.clone();
+    let mut tools = req.tools.unwrap_or_default();
+    tools.push(create_web_search_tool(params));
+    req.tools = Some(tools);
+    req
 }
